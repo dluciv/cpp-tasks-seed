@@ -1,7 +1,7 @@
 # cpp-tasks-seed
 
-![BuildUtestItest](https://github.com/dluciv/cpp-tasks-seed/actions/workflows/make_and_test.yml/badge.svg)
+[![BuildUtestItest](./actions/workflows/make_and_test.yml/badge.svg)](./actions/workflows/make_and_test.yml)
 
-![StyleCheck](https://github.com/dluciv/cpp-tasks-seed/actions/workflows/style_check.yml/badge.svg)
+[![StyleCheck](./actions/workflows/style_check.yml/badge.svg)](./actions/workflows/style_check.yml)
 
 Small C++ repository with templates for student tasks
