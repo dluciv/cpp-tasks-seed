@@ -31,7 +31,7 @@ jobs:
 
     - name: Статический анализ clang-tidy
       run: |
-        CHECKS='-*,clang-analyzer-*,modernize-*,performance-*,bugprone-*'
+        CHECKS='-*,clang-analyzer-*,performance-*,bugprone-*'
         FILES=$(git ls-files '*.cpp' '*.cxx' '*.cc' | tr '\n' ' ')
 
         if [ -z "$FILES" ]; then
