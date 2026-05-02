@@ -10,6 +10,10 @@
 template <typename Iterator>
 void bubble_sort(Iterator begin, Iterator end)
 {
+    if (begin == end || std::next(begin) == end) {
+        return;
+    }
+
     bool swapped = true;
     while (swapped) {
         swapped = false;
@@ -26,7 +30,6 @@ void bubble_sort(Iterator begin, Iterator end)
 template <typename Iterator>
 void quick_sort(Iterator begin, Iterator end)
 {
-    // чтобы не возникло риска бесконечной рекурсии
     if (begin == end || std::next(begin) == end) {
         return;
     }
