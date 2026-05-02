@@ -49,7 +49,7 @@ int main()
         shuffle_data(number_data);
         CollInt::reset_stats();
         quick_sort(number_data.begin(), number_data.end());
-        std::cout << n << "\tQuick\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
+        std::cout << n << "\tQuick\t\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
 
         std::cout << "--------------------------------------------------------------\n";
     }
