@@ -20,6 +20,8 @@ void insertion_sort(Iterator begin, Iterator end)
 template <typename Iterator>
 void quick_sort(Iterator begin, Iterator end)
 {
+	if (end - begin < 2) return;
+
 	using std::swap;
 	Iterator base = begin;
 	Iterator current = begin + 1;
