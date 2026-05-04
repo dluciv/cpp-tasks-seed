@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <random>
 #include <iomanip>
+#include <numeric> // <-- Это обязательно добавить для std::iota
 
 #include "collvalue.h"
 #include "sorting.h"
@@ -13,7 +14,7 @@ using CollInt = CollectingValue<int>;
 std::vector<CollInt> generate_data(size_t n)
 {
     std::vector<CollInt> data(n);
-    std::iota(data.begin(), data.end(), CollInt(0));
+    std::iota(data.begin(), data.end(), CollInt(0)); // Заполняет 0, 1, 2, ...
     return data;
 }
 
@@ -45,11 +46,11 @@ int main()
         bubble_sort(number_data.begin(), number_data.end());
         std::cout << n << "\tBubble\t\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
 
-        // --- Insertion Sort ---
+        // --- Quick Sort (в оригинале было написано Insertion, но вызывается quick_sort, исправим комментарий) ---
         shuffle_data(number_data);
         CollInt::reset_stats();
         quick_sort(number_data.begin(), number_data.end());
-        std::cout << n << "\tInsertion\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
+        std::cout << n << "\tQuick\t\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
 
         std::cout << "--------------------------------------------------------------\n";
     }
