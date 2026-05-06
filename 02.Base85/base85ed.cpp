@@ -41,19 +41,19 @@ std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
     size_t i = 0;
     for (; i + 4 <= len; i += 4)
     {
-        char block_out[5];
+        char block_out[5] = {};
         encode_block_rfc1924(&bytes[i], block_out);
         result.insert(result.end(), block_out, block_out + 5);
     }
 
     if (i < len)
     {
-        uint8_t temp_block[4] = {0};
+        uint8_t temp_block[4] = {};
         int remaining = static_cast<int>(len - i);
 
         memcpy(temp_block, &bytes[i], remaining);
 
-        char block_out[5];
+        char block_out[5] = {};
         encode_block_rfc1924(temp_block, block_out);
 
         result.insert(result.end(), block_out, block_out + remaining + 1);
