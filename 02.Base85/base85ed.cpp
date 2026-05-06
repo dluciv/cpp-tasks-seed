@@ -3,115 +3,144 @@
 #include <string>
 #include <stdexcept>
 #include <cstring>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <errno.h>
+#include <algorithm>
 
 #include "base85ed.h"
 
-// TODO: remove this
-static std::vector<uint8_t> run_command_io(const std::string &command,
-        const std::vector<uint8_t> &in)
-{
-    int inpipe[2];   // parent -> child
-    int outpipe[2];  // child -> parent
+static const char rfc1924_alphabet[] = 
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
 
-    if (pipe(inpipe) == -1) throw std::runtime_error(strerror(errno));
-    if (pipe(outpipe) == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
-
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
-
-    if (pid == 0)
-    {
-        // child
-        dup2(inpipe[0], STDIN_FILENO);
-        dup2(outpipe[1], STDOUT_FILENO);
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
-        _exit(127);
-    }
-
-    // parent
-    close(inpipe[0]);
-    close(outpipe[1]);
-
-    // write input
-    const uint8_t *wp = in.data();
-    ssize_t remaining = static_cast<ssize_t>(in.size());
-    while (remaining > 0)
-    {
-        ssize_t n = write(inpipe[1], wp, remaining);
-        if (n == -1)
-        {
-            if (errno == EINTR) continue;
-            close(inpipe[1]);
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-        remaining -= n;
-        wp += n;
-    }
-    close(inpipe[1]); // signal EOF
-
-    // read all stdout
-    std::vector<uint8_t> out;
-    uint8_t buf[4096];
-    while (true)
-    {
-        ssize_t n = read(outpipe[0], buf, sizeof(buf));
-        if (n > 0) out.insert(out.end(), buf, buf + n);
-        else if (n == 0) break;
-        else
-        {
-            if (errno == EINTR) continue;
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-    }
-    close(outpipe[0]);
-
-    int status = 0;
-    if (waitpid(pid, &status, 0) == -1) throw std::runtime_error(strerror(errno));
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        throw std::runtime_error("child exited with non-zero status");
-
-    return out;
+static int get_char_index(char c) {
+    const char* pos = strchr(rfc1924_alphabet, c);
+    if (!pos) return -1;
+    return static_cast<int>(pos - rfc1924_alphabet);
 }
 
+static void encode_block_rfc1924(const uint8_t input[4], char output[5]) {
+    uint32_t val = (static_cast<uint32_t>(input[0]) << 24) |
+                   (static_cast<uint32_t>(input[1]) << 16) |
+                   (static_cast<uint32_t>(input[2]) << 8)  |
+                   (static_cast<uint32_t>(input[3]));
 
-// TODO: implement this in C++
-std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
-{
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85encode(sys.stdin.buffer.read()))'",
-               bytes
-           );
+    for (int i = 4; i >= 0; --i) {
+        output[i] = rfc1924_alphabet[val % 85];
+        val /= 85;
+    }
 }
 
+std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes) {
+    std::vector<uint8_t> result;
+    size_t len = bytes.size();
+    
+    result.reserve((len / 4) * 5 + 5);
 
-// TODO: implement this in C++
-std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str)
-{
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85decode(sys.stdin.buffer.read()))'",
-               b85str
-           );
+    size_t i = 0;
+    for (; i + 4 <= len; i += 4) {
+        char block_out[5];
+        encode_block_rfc1924(&bytes[i], block_out);
+        result.insert(result.end(), block_out, block_out + 5);
+    }
+
+    if (i < len) {
+        uint8_t temp_block[4] = {0};
+        int remaining = static_cast<int>(len - i);
+        
+        memcpy(temp_block, &bytes[i], remaining);
+        
+        char block_out[5];
+        encode_block_rfc1924(temp_block, block_out);
+        
+        result.insert(result.end(), block_out, block_out + remaining + 1);
+    }
+
+    return result;
+}
+
+std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str) {
+    std::vector<uint8_t> result;
+    size_t len = b85str.size();
+    
+    std::vector<char> cleaned;
+    cleaned.reserve(len);
+    for (uint8_t byte : b85str) {
+        char c = static_cast<char>(byte);
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\0') continue;
+        cleaned.push_back(c);
+    }
+
+    size_t clean_len = cleaned.size();
+    if (clean_len == 0) return {};
+
+    size_t i = 0;
+    while (i < clean_len) {
+        int chars_read = 0;
+        uint32_t val = 0;
+        
+        for (int j = 0; j < 5 && (i + j) < clean_len; ++j) {
+            int digit = get_char_index(cleaned[i + j]);
+            if (digit == -1) {
+                throw std::runtime_error("Invalid Base85 character");
+            }
+            
+            if (val > (UINT32_MAX - digit) / 85) {
+                 throw std::runtime_error("Base85 overflow");
+            }
+            
+            val = val * 85 + static_cast<uint32_t>(digit);
+            chars_read++;
+        }
+
+        int missing_chars = 5 - chars_read;
+        
+        if (missing_chars > 0) {
+            for (int k = 0; k < missing_chars; ++k) {
+                 if (val > UINT32_MAX / 85) {
+                      throw std::runtime_error("Base85 overflow during padding");
+                 }
+                 val *= 85;
+            }
+            
+            int bytes_to_take = chars_read - 1;
+            int zero_bytes = 4 - bytes_to_take;
+            
+            if (zero_bytes > 0) {
+                uint32_t M = 1;
+                for (int z = 0; z < zero_bytes; ++z) {
+                    M *= 256;
+                }
+                
+                uint32_t remainder = val % M;
+                uint32_t half_M = M / 2;
+                
+                if (remainder >= half_M) {
+                    if (val > UINT32_MAX - (M - remainder)) {
+                         val = (val / M) * M;
+                    } else {
+                        val = val + (M - remainder);
+                    }
+                } else {
+                    val = val - remainder;
+                }
+            }
+            
+            int bytes_to_add = chars_read - 1;
+            if (bytes_to_add < 0) bytes_to_add = 0;
+            
+            for (int b = 0; b < bytes_to_add; ++b) {
+                result.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
+                val <<= 8;
+            }
+        } else {
+            uint8_t decoded_bytes[4];
+            decoded_bytes[0] = static_cast<uint8_t>((val >> 24) & 0xFF);
+            decoded_bytes[1] = static_cast<uint8_t>((val >> 16) & 0xFF);
+            decoded_bytes[2] = static_cast<uint8_t>((val >> 8) & 0xFF);
+            decoded_bytes[3] = static_cast<uint8_t>(val & 0xFF);
+            result.insert(result.end(), decoded_bytes, decoded_bytes + 4);
+        }
+
+        i += chars_read;
+    }
+
+    return result;
 }
