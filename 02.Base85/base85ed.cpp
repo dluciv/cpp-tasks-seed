@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
+#include <array>
 
 #include "base85ed.h"
 
@@ -17,18 +18,20 @@ static int get_char_index(char c)
     return static_cast<int>(pos - rfc1924_alphabet);
 }
 
-static void encode_block_rfc1924(const uint8_t input[4], char output[5])
+static std::array<char, 5> encode_block_rfc1924(const uint8_t input[4])
 {
     uint32_t val = (static_cast<uint32_t>(input[0]) << 24) |
                    (static_cast<uint32_t>(input[1]) << 16) |
                    (static_cast<uint32_t>(input[2]) << 8)  |
                    (static_cast<uint32_t>(input[3]));
 
+    std::array<char, 5> output;
     for (int i = 4; i >= 0; --i)
     {
         output[i] = rfc1924_alphabet[val % 85];
         val /= 85;
     }
+    return output;
 }
 
 std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
@@ -41,9 +44,8 @@ std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
     size_t i = 0;
     for (; i + 4 <= len; i += 4)
     {
-        char block_out[5] = {};
-        encode_block_rfc1924(&bytes[i], block_out);
-        result.insert(result.end(), block_out, block_out + 5);
+        auto block_out = encode_block_rfc1924(&bytes[i]);
+        result.insert(result.end(), block_out.begin(), block_out.end());
     }
 
     if (i < len)
@@ -53,10 +55,8 @@ std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
 
         memcpy(temp_block, &bytes[i], remaining);
 
-        char block_out[5] = {};
-        encode_block_rfc1924(temp_block, block_out);
-
-        result.insert(result.end(), block_out, block_out + remaining + 1);
+        auto block_out = encode_block_rfc1924(temp_block);
+        result.insert(result.end(), block_out.begin(), block_out.begin() + remaining + 1);
     }
 
     return result;
