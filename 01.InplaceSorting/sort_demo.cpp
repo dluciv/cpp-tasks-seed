@@ -11,51 +11,70 @@
 using CollInt = CollectingValue<int>;
 
 // Random data
-std::vector<CollInt> generate_data(size_t n) {
+std::vector<CollInt> generate_data(size_t n)
+{
     std::vector<CollInt> data(n);
     std::iota(data.begin(), data.end(), CollInt(0));
     return data;
 }
 
-void shuffle_data(std::vector<CollInt>& data) {
+void shuffle_data(std::vector<CollInt>& data)
+{
     std::shuffle(data.begin(), data.end(), std::mt19937{std::random_device{}()});
 }
 
-void add_to_deque(std::deque<std::vector<int>>& deq, const std::vector<CollInt>& vec) {
+void add_to_deque(std::deque<std::vector<int>>& deq, const std::vector<CollInt>& vec)
+{
     std::vector<int> int_vec;
     int_vec.reserve(vec.size());
-    for (const auto& val : vec) {
+    for (const auto& val : vec)
+    {
         int_vec.push_back(val.value);
     }
     deq.push_back(int_vec);
 }
 
-void print_deque(const std::deque<std::vector<int>>& deq) {
+void print_deque(const std::deque<std::vector<int>>& deq)
+{
     std::cout << "\n=== Deque contents ===\n";
     int idx = 1;
-    for (const auto& vec : deq) {
+    for (const auto& vec : deq)
+    {
         std::cout << "Vector " << idx++ << " (size " << vec.size() << "): ";
-        if (vec.size() <= 20) {
-            for (int x : vec) { std::cout << x << " "; }
+        if (vec.size() <= 20)
+        {
+            for (int x : vec)
+            {
+                std::cout << x << " ";
+            }
         }
-        else {
-            for (int i = 0; i < 10; ++i) { std::cout << vec[i] << " "; }
+        else
+        {
+            for (int i = 0; i < 10; ++i)
+            {
+                std::cout << vec[i] << " ";
+            }
             std::cout << "... ";
-            for (size_t i = vec.size() - 10; i < vec.size(); ++i) { std::cout << vec[i] << " "; }
+            for (size_t i = vec.size() - 10; i < vec.size(); ++i)
+            {
+                std::cout << vec[i] << " ";
+            }
         }
         std::cout << "\n";
     }
     std::cout << "=====================\n";
 }
 
-int main() {
+int main()
+{
     std::vector<size_t> sizes = {100, 500, 1000, 2000};
     std::deque<std::vector<int>> results_deque;
 
     std::cout << "N\tAlgo\t\tComps\t\tSwaps\t\tMoves\n";
     std::cout << "----------------------------------------------------------------\n";
 
-    for (size_t n : sizes) {
+    for (size_t n : sizes)
+    {
         auto number_data = generate_data(n);
 
         // --- Std Sort ---
