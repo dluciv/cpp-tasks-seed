@@ -42,18 +42,21 @@ void write_vector_to_stdout(const std::vector<uint8_t>& data) {
 }
 
 
-int main(int argc, const char *argv[]) {
+int main(int argc, const char* argv[]) {
     if (argc != 2) {
         std::cerr << "Use -e or -d argument\n";
         return 1;
-    } else {
+    }
+    else {
         std::function<std::vector<uint8_t>(const std::vector<uint8_t>&)> func = nullptr;
         std::string a = argv[1];
         if (a == "--encode" || a == "-e") {
             func = base85::encode;
-        } else if (a == "--decode" || a == "-d") {
+        }
+        else if (a == "--decode" || a == "-d") {
             func = base85::decode;
-        } else {
+        }
+        else {
             std::cerr << "Don't know how to deal with <" << a << ">, use -e or -d\n";
             return 1;
         }

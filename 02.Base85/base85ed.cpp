@@ -13,7 +13,7 @@ const char ALPHABET[] =
 
 int char_index(char c) {
     const char* pos = strchr(ALPHABET, c);
-    if (!pos) return -1;
+    if (!pos) { return -1; }
     return static_cast<int>(pos - ALPHABET);
 }
 
@@ -36,7 +36,7 @@ std::vector<uint8_t> base85::encode(const std::vector<uint8_t>& bytes) {
     std::vector<uint8_t> res;
     size_t i = 0;
     for (; i + 4 <= bytes.size(); i += 4) {
-        uint8_t block[4] = {bytes[i], bytes[i+1], bytes[i+2], bytes[i+3]};
+        uint8_t block[4] = {bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]};
         auto buf = pack_block(block);
         res.insert(res.end(), buf.begin(), buf.end());
     }
@@ -58,7 +58,7 @@ std::vector<uint8_t> base85::decode(const std::vector<uint8_t>& input) {
     cleaned.reserve(len);
     for (uint8_t b : input) {
         char c = static_cast<char>(b);
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\0') continue;
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\0') { continue; }
         cleaned.push_back(c);
     }
 
@@ -96,28 +96,31 @@ std::vector<uint8_t> base85::decode(const std::vector<uint8_t>& input) {
 
             if (zero_bytes > 0) {
                 uint32_t M = 1;
-                for (int z = 0; z < zero_bytes; ++z) M *= 256;
+                for (int z = 0; z < zero_bytes; ++z) { M *= 256; }
                 uint32_t rem = val % M;
                 uint32_t half = M / 2;
                 if (rem >= half) {
                     if (val > UINT32_MAX - (M - rem)) {
                         val = (val / M) * M;
-                    } else {
+                    }
+                    else {
                         val = val + (M - rem);
                     }
-                } else {
+                }
+                else {
                     val = val - rem;
                 }
             }
 
             int add = got - 1;
-            if (add < 0) add = 0;
+            if (add < 0) { add = 0; }
 
             for (int b = 0; b < add; ++b) {
                 result.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
                 val <<= 8;
             }
-        } else {
+        }
+        else {
             uint8_t bytes[4];
             bytes[0] = static_cast<uint8_t>((val >> 24) & 0xFF);
             bytes[1] = static_cast<uint8_t>((val >> 16) & 0xFF);

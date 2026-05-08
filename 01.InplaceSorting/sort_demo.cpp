@@ -36,11 +36,12 @@ void print_deque(const std::deque<std::vector<int>>& deq) {
     for (const auto& vec : deq) {
         std::cout << "Vector " << idx++ << " (size " << vec.size() << "): ";
         if (vec.size() <= 20) {
-            for (int x : vec) std::cout << x << " ";
-        } else {
-            for (int i = 0; i < 10; ++i) std::cout << vec[i] << " ";
+            for (int x : vec) { std::cout << x << " "; }
+        }
+        else {
+            for (int i = 0; i < 10; ++i) { std::cout << vec[i] << " "; }
             std::cout << "... ";
-            for (size_t i = vec.size() - 10; i < vec.size(); ++i) std::cout << vec[i] << " ";
+            for (size_t i = vec.size() - 10; i < vec.size(); ++i) { std::cout << vec[i] << " "; }
         }
         std::cout << "\n";
     }

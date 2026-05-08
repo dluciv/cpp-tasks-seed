@@ -7,7 +7,7 @@
 
 template <typename Iterator>
 void bubble_sort(Iterator begin, Iterator end) {
-    if (begin == end) return;
+    if (begin == end) { return; }
 
     bool swapped;
     Iterator last = end;
@@ -25,7 +25,8 @@ void bubble_sort(Iterator begin, Iterator end) {
             }
         }
         --last;
-    } while (swapped);
+    }
+    while (swapped);
 }
 
 template <typename Iterator>
@@ -51,11 +52,11 @@ Iterator partition(Iterator begin, Iterator end) {
 
 template <typename Iterator>
 void quick_sort_helper(Iterator begin, Iterator end) {
-    if (begin == end) return;
+    if (begin == end) { return; }
 
     Iterator next = begin;
     ++next;
-    if (next == end) return;
+    if (next == end) { return; }
 
     Iterator pivot_pos = partition(begin, end);
 
