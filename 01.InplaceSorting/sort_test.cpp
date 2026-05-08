@@ -7,8 +7,7 @@
 
 // Но проверьте, что сортировки таки работают...
 
-TEST(FooSuite, FooTest)
-{
+TEST(FooSuite, FooTest) {
     EXPECT_EQ(0, 0);
 }
 
@@ -96,12 +95,12 @@ TEST(ComparisonTest, BothSortsProduceSameResult) {
     std::vector<int> original = {64, 34, 25, 12, 22, 11, 90, 1, 5, 8, 3};
     std::vector<int> v1 = original;
     std::vector<int> v2 = original;
-    
+
     bubble_sort(v1.begin(), v1.end());
     quick_sort(v2.begin(), v2.end());
-    
+
     EXPECT_EQ(v1, v2);
-    
+
     std::vector<int> expected = original;
     std::sort(expected.begin(), expected.end());
     EXPECT_EQ(v1, expected);
@@ -114,14 +113,14 @@ TEST(CustomTypeTest, WorksWithCollectingValue) {
     for (int i = 5; i >= 1; --i) {
         v.push_back(CollInt(i));
     }
-    
+
     CollInt::reset_stats();
     quick_sort(v.begin(), v.end());
-    
+
     for (int i = 0; i < 5; ++i) {
         EXPECT_EQ(v[i].value, i + 1);
     }
-    
+
     EXPECT_GT(CollInt::comps, 0);
     EXPECT_GT(CollInt::swaps, 0);
 }

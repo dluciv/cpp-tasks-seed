@@ -8,8 +8,7 @@
  * @namespace base85
  * @brief Utilities for Base85 <en/de>coding of bytes
  */
-namespace base85
-{
+namespace base85 {
 
 /**
  * @brief Encodes bytes into a Base85.
