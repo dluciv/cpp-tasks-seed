@@ -48,7 +48,7 @@ void write_vector_to_stdout(const std::vector<uint8_t>& data)
 }
 
 
-int main(int argc, const char *argv[])
+int main(int argc, const char* argv[])
 {
     if (argc != 2)
     {

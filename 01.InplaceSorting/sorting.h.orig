@@ -6,26 +6,19 @@
 #include "collvalue.h"
 
 template <typename Iterator>
-void bubble_sort(Iterator begin, Iterator end)
-{
-    if (begin == end)
-    {
-        return;
-    }
+void bubble_sort(Iterator begin, Iterator end) {
+    if (begin == end) { return; }
 
     bool swapped;
     Iterator last = end;
     --last;
 
-    do
-    {
+    do {
         swapped = false;
-        for (Iterator it = begin; it != last; ++it)
-        {
+        for (Iterator it = begin; it != last; ++it) {
             Iterator next = it;
             ++next;
-            if (*next < *it)
-            {
+            if (*next < *it) {
                 using std::swap;
                 swap(*it, *next);
                 swapped = true;
@@ -37,18 +30,15 @@ void bubble_sort(Iterator begin, Iterator end)
 }
 
 template <typename Iterator>
-Iterator partition(Iterator begin, Iterator end)
-{
+Iterator partition(Iterator begin, Iterator end) {
     auto pivot = end;
     --pivot;
 
     Iterator i = begin;
     --i;
 
-    for (Iterator j = begin; j != pivot; ++j)
-    {
-        if (*j < *pivot)
-        {
+    for (Iterator j = begin; j != pivot; ++j) {
+        if (*j < *pivot) {
             ++i;
             using std::swap;
             swap(*i, *j);
@@ -61,19 +51,12 @@ Iterator partition(Iterator begin, Iterator end)
 }
 
 template <typename Iterator>
-void quick_sort_helper(Iterator begin, Iterator end)
-{
-    if (begin == end)
-    {
-        return;
-    }
+void quick_sort_helper(Iterator begin, Iterator end) {
+    if (begin == end) { return; }
 
     Iterator next = begin;
     ++next;
-    if (next == end)
-    {
-        return;
-    }
+    if (next == end) { return; }
 
     Iterator pivot_pos = partition(begin, end);
 
@@ -85,8 +68,7 @@ void quick_sort_helper(Iterator begin, Iterator end)
 }
 
 template <typename Iterator>
-void quick_sort(Iterator begin, Iterator end)
-{
+void quick_sort(Iterator begin, Iterator end) {
     quick_sort_helper(begin, end);
 }
 

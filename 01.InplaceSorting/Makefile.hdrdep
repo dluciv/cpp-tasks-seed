@@ -1,1 +1,3 @@
-
+sort_demo.r.o: sorting.h collvalue.h
+sort_demo.d.o: sorting.h collvalue.h
+sort_test.d.o: sorting.h collvalue.h
