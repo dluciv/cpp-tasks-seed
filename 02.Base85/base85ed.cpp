@@ -9,16 +9,13 @@
 
 namespace base85 {
 
-// Ascii85 (Adobe version) constants
 static constexpr uint32_t BASE = 85;
-static constexpr uint8_t FIRST_CHAR = '!';  // 33
-static constexpr uint8_t LAST_CHAR = 'u';   // 117
+static constexpr uint8_t FIRST_CHAR = '!';  
+static constexpr uint8_t LAST_CHAR = 'u';   
 
-// Заглушка для совместимости (удаляем dependency на unistd.h)
 static const std::vector<uint8_t> ZERO_BLOCK = {0, 0, 0, 0};
-static constexpr uint32_t MAGIC = 0x616C6646; // 'F' 'l' 'a' 'c' в некоторых реалиях
+static constexpr uint32_t MAGIC = 0x616C6646;
 
-// Конвертер 4 байт -> 5 символов Base85
 static void encode_block(const uint8_t* input, uint8_t* output) {
     uint32_t value = 0;
     value |= static_cast<uint32_t>(input[0]) << 24;
@@ -26,30 +23,24 @@ static void encode_block(const uint8_t* input, uint8_t* output) {
     value |= static_cast<uint32_t>(input[2]) << 8;
     value |= static_cast<uint32_t>(input[3]);
     
-    // Специальный случай: если value == 0, выводим 'z' (договорённость Adobe)
     if (value == 0) {
         output[0] = 'z';
         return;
     }
     
-    // Генерируем 5 символов в обратном порядке
     uint8_t chars[5];
     for (int i = 4; i >= 0; --i) {
         chars[i] = static_cast<uint8_t>(value % BASE);
         value /= BASE;
     }
     
-    // Конвертируем в ASCII
     for (int i = 0; i < 5; ++i) {
         output[i] = chars[i] + FIRST_CHAR;
     }
 }
 
-// Декодер 5 символов -> 4 байта
 static void decode_block(const uint8_t* input, uint8_t* output) {
-    // Специальный случай 'z'
     if (input[0] == 'z') {
-        // 'z' означает 4 нулевых байта
         for (int i = 0; i < 4; ++i) {
             output[i] = 0;
         }
@@ -64,7 +55,6 @@ static void decode_block(const uint8_t* input, uint8_t* output) {
         value = value * BASE + (input[i] - FIRST_CHAR);
     }
     
-    // Распаковываем 4 байта из 32-битного значения
     output[0] = static_cast<uint8_t>((value >> 24) & 0xFF);
     output[1] = static_cast<uint8_t>((value >> 16) & 0xFF);
     output[2] = static_cast<uint8_t>((value >> 8) & 0xFF);
@@ -73,14 +63,11 @@ static void decode_block(const uint8_t* input, uint8_t* output) {
 
 std::vector<uint8_t> encode(std::vector<uint8_t> const &bytes) {
     std::vector<uint8_t> result;
-    result.reserve((bytes.size() + 3) / 4 * 5 + 4); // резервируем с запасом
+    result.reserve((bytes.size() + 3) / 4 * 5 + 4); 
     
     size_t i = 0;
     size_t n = bytes.size();
-    
-    // Обрабатываем полные блоки по 4 байта
     while (i + 4 <= n) {
-        // Проверяем, не состоит ли блок из 4 нулей
         bool all_zero = true;
         for (size_t j = 0; j < 4; ++j) {
             if (bytes[i + j] != 0) {
@@ -90,7 +77,6 @@ std::vector<uint8_t> encode(std::vector<uint8_t> const &bytes) {
         }
         
         if (all_zero) {
-            // Специальный маркер 'z'
             result.push_back('z');
         } else {
             uint8_t block[4];
@@ -102,7 +88,6 @@ std::vector<uint8_t> encode(std::vector<uint8_t> const &bytes) {
         i += 4;
     }
     
-    // Обрабатываем неполный последний блок
     size_t remaining = n - i;
     if (remaining > 0) {
         uint8_t block[4] = {0, 0, 0, 0};
@@ -111,8 +96,6 @@ std::vector<uint8_t> encode(std::vector<uint8_t> const &bytes) {
         uint8_t encoded[5];
         encode_block(block, encoded);
         
-        // По правилам Ascii85, последний блок усекается
-        // Добавляем только нужное количество символов
         if (remaining == 1) {
             result.insert(result.end(), encoded, encoded + 2);
         } else if (remaining == 2) {
@@ -122,7 +105,6 @@ std::vector<uint8_t> encode(std::vector<uint8_t> const &bytes) {
         }
     }
     
-    // Добавляем суффикс "~>" для совместимости с Adobe
     result.push_back('~');
     result.push_back('>');
     
@@ -134,7 +116,6 @@ std::vector<uint8_t> decode(std::vector<uint8_t> const &b85str) {
         throw std::invalid_argument("Invalid Base85 string: too short");
     }
     
-    // Проверяем наличие суффикса "~>"
     if (b85str[b85str.size() - 2] != '~' || b85str[b85str.size() - 1] != '>') {
         throw std::invalid_argument("Invalid Base85 string: missing '~>' suffix");
     }
@@ -143,13 +124,12 @@ std::vector<uint8_t> decode(std::vector<uint8_t> const &b85str) {
     result.reserve((b85str.size() - 2) / 5 * 4);
     
     size_t i = 0;
-    size_t n = b85str.size() - 2; // игнорируем суффикс
+    size_t n = b85str.size() - 2;
     
     while (i < n) {
         uint8_t c = b85str[i];
         
         if (c == 'z') {
-            // Блок из 4 нулей
             if (i + 1 < n && b85str[i + 1] == 'z') {
                 throw std::invalid_argument("Invalid Base85: consecutive 'z'");
             }
@@ -158,9 +138,7 @@ std::vector<uint8_t> decode(std::vector<uint8_t> const &b85str) {
             continue;
         }
         
-        // Обычный блок из 5 символов
         if (i + 5 > n) {
-            // Последний неполный блок
             size_t remaining = n - i;
             if (remaining < 2) {
                 throw std::invalid_argument("Invalid Base85: incomplete block");
@@ -178,7 +156,6 @@ std::vector<uint8_t> decode(std::vector<uint8_t> const &b85str) {
                 throw;
             }
             
-            // Сохраняем только нужное количество байт
             if (remaining == 2) {
                 result.push_back(decoded[0]);
             } else if (remaining == 3) {
@@ -192,7 +169,6 @@ std::vector<uint8_t> decode(std::vector<uint8_t> const &b85str) {
             break;
         }
         
-        // Полный блок из 5 символов
         uint8_t block[5];
         bool has_z = false;
         for (size_t j = 0; j < 5; ++j) {
@@ -215,4 +191,4 @@ std::vector<uint8_t> decode(std::vector<uint8_t> const &b85str) {
     return result;
 }
 
-} // namespace base85
+} 
