@@ -37,7 +37,7 @@ void write_vector_to_stdout(const std::vector<uint8_t>& data)
 {
     // Ensure no tied flushing and faster IO (optional)
     std::ios::sync_with_stdio(false);
-    std::cout.setf(std::ios::fmtflags(0), std::ios::basefield); // no formatting changes
+    std::cout.unsetf(std::ios::basefield); // no formatting changes
 
     if (!data.empty())
     {
