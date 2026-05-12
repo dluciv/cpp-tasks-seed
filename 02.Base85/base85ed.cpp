@@ -2,116 +2,69 @@
 #include <cstdint>
 #include <string>
 #include <stdexcept>
-#include <cstring>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <errno.h>
+#include <algorithm>
 
 #include "base85ed.h"
 
-// TODO: remove this
-static std::vector<uint8_t> run_command_io(const std::string &command,
-        const std::vector<uint8_t> &in)
-{
-    int inpipe[2];   // parent -> child
-    int outpipe[2];  // child -> parent
 
-    if (pipe(inpipe) == -1) throw std::runtime_error(strerror(errno));
-    if (pipe(outpipe) == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
-
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
-
-    if (pid == 0)
-    {
-        // child
-        dup2(inpipe[0], STDIN_FILENO);
-        dup2(outpipe[1], STDOUT_FILENO);
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
-        _exit(127);
-    }
-
-    // parent
-    close(inpipe[0]);
-    close(outpipe[1]);
-
-    // write input
-    const uint8_t *wp = in.data();
-    ssize_t remaining = static_cast<ssize_t>(in.size());
-    while (remaining > 0)
-    {
-        ssize_t n = write(inpipe[1], wp, remaining);
-        if (n == -1)
-        {
-            if (errno == EINTR) continue;
-            close(inpipe[1]);
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-        remaining -= n;
-        wp += n;
-    }
-    close(inpipe[1]); // signal EOF
-
-    // read all stdout
-    std::vector<uint8_t> out;
-    uint8_t buf[4096];
-    while (true)
-    {
-        ssize_t n = read(outpipe[0], buf, sizeof(buf));
-        if (n > 0) out.insert(out.end(), buf, buf + n);
-        else if (n == 0) break;
-        else
-        {
-            if (errno == EINTR) continue;
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-    }
-    close(outpipe[0]);
-
-    int status = 0;
-    if (waitpid(pid, &status, 0) == -1) throw std::runtime_error(strerror(errno));
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        throw std::runtime_error("child exited with non-zero status");
-
-    return out;
+namespace {
+	const char b85chars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
+	struct ReverseMap {
+		uint8_t map[256];
+		ReverseMap() {
+			std::fill(std::begin(map), std::end(map), 255);
+			for (int i = 0; i < 85; ++i) {
+				map[static_cast<unsigned char>(b85chars[i])] = i;
+				}
+			}
+		};
+	const ReverseMap rmap;
 }
 
 
-// TODO: implement this in C++
-std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
+std::vector<uint8_t> base85::encode(const std::vector<uint8_t>& bytes)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85encode(sys.stdin.buffer.read()))'",
-               bytes
-           );
+	std::vector<uint8_t> result;
+	result.reserve((bytes.size() + 3) / 4 * 5);
+
+	for (size_t i = 0; i < bytes.size(); i += 4) {
+		uint32_t block = 0;
+		size_t chunk_len = std::min(static_cast<size_t>(4), bytes.size() - i);
+		for (size_t j = 0; j < 4; ++j) { block = (block << 8) | (j < chunk_len ? bytes[i + j] : 0); }
+
+		char out[5];
+		for (int j = 4; j >= 0; --j) {
+			out[j] = b85chars[block % 85];
+			block /= 85;
+		}
+
+		for (size_t j = 0; j <= chunk_len; ++j) { result.push_back(out[j]); }
+	}
+	return result;
 }
 
 
-// TODO: implement this in C++
-std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str)
+std::vector<uint8_t> base85::decode(const std::vector<uint8_t>& b85str)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85decode(sys.stdin.buffer.read()))'",
-               b85str
-           );
+	std::vector<uint8_t> result;
+	result.reserve((b85str.size() + 4) / 5 * 4);
+	
+	for (size_t i = 0; i < b85str.size(); i += 5) {
+		uint64_t block = 0;
+		size_t chunk_len = std::min(static_cast<size_t>(5), b85str.size() - i);
+		for (size_t j = 0; j < 5; ++j) {
+			int idx = 84;
+			if (j < chunk_len) {
+				uint8_t c = b85str[i + j];
+				idx = rmap.map[c];
+		
+			if (idx == 255) { throw std::invalid_argument("invalid base85 char"); }
+			}
+			block = block * 85 + idx;
+		}
+
+		size_t out_bytes = chunk_len - 1;
+		for (size_t j = 0; j < out_bytes; ++j) { result.push_back(static_cast<uint8_t>((block >> (24 - j * 8)) & 0xFF)); }
+	}
+	return result;
 }
