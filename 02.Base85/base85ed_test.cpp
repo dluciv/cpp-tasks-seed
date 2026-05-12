@@ -100,3 +100,60 @@ TEST(Base85Decode, InvalidCharacter)
 
     EXPECT_THROW(base85::decode(invalid), std::runtime_error);
 }
+
+TEST(Base85RoundTrip, VariousLengths)
+{
+    for (size_t len = 0; len < 1024; ++len)
+    {
+        std::vector<uint8_t> data;
+
+        for (size_t i = 0; i < len; ++i)
+        {
+            data.push_back(static_cast<uint8_t>(i % 256));
+        }
+
+        auto encoded = base85::encode(data);
+        auto decoded = base85::decode(encoded);
+
+        EXPECT_EQ(decoded, data);
+    }
+}
+
+TEST(Base85RoundTrip, LongText)
+{
+    std::string s;
+
+    for (int i = 0; i < 10000; ++i)
+    {
+        s += "The quick brown fox jumps over the lazy dog ";
+    }
+
+    std::vector<uint8_t> data(s.begin(), s.end());
+
+    auto encoded = base85::encode(data);
+    auto decoded = base85::decode(encoded);
+
+    EXPECT_EQ(decoded, data);
+}
+
+TEST(Base85RoundTrip, BinaryData)
+{
+    std::vector<uint8_t> data;
+
+    for (int i = 0; i < 100000; ++i)
+    {
+        data.push_back(static_cast<uint8_t>(rand() % 256));
+    }
+
+    auto encoded = base85::encode(data);
+    auto decoded = base85::decode(encoded);
+
+    EXPECT_EQ(decoded, data);
+}
+
+TEST(Base85Decode, InvalidCharacter)
+{
+    std::vector<uint8_t> invalid = {'~', '~', '~', ' '};
+
+    EXPECT_THROW(base85::decode(invalid), std::runtime_error);
+}
