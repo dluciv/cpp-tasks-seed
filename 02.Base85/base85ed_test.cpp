@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <unistd.h>
-#include <sys/wait.h>
 #include <vector>
 #include <cstdint>
 #include <stdexcept>
@@ -42,4 +40,21 @@ TEST(Base85ShortsDecode, TrivialShortDecodes)
     {
         EXPECT_EQ(base85::decode(cstr2v(p.first)), cstr2v(p.second));
     }
+}
+
+TEST(Base85Exceptions, InvalidCharacters)
+{
+    EXPECT_THROW(base85::decode(cstr2v("F*")), std::runtime_error);
+    EXPECT_THROW(base85::decode(cstr2v("F ")), std::runtime_error);
+}
+
+TEST(Base85Exceptions, IsolatedCharacter)
+{
+    EXPECT_THROW(base85::decode(cstr2v("F")), std::runtime_error);
+    EXPECT_THROW(base85::decode(cstr2v("12345F")), std::runtime_error);
+}
+
+TEST(Base85Exceptions, Overflow)
+{
+    EXPECT_THROW(base85::decode(cstr2v("~~~~~")), std::runtime_error);
 }
