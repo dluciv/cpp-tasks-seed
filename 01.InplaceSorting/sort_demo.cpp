@@ -39,17 +39,17 @@ int main()
         std::sort(number_data.begin(), number_data.end());
         std::cout << n << "\tstd::sort\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
 
-        // --- Bubble Sort ---
-        shuffle_data(number_data);
-        CollInt::reset_stats();
-        bubble_sort(number_data.begin(), number_data.end());
-        std::cout << n << "\tBubble\t\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
-
         // --- Insertion Sort ---
         shuffle_data(number_data);
         CollInt::reset_stats();
-        quick_sort(number_data.begin(), number_data.end());
+        insertion_sort(number_data.begin(), number_data.end());
         std::cout << n << "\tInsertion\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
+
+        // --- Quick Sort ---
+        shuffle_data(number_data);
+        CollInt::reset_stats();
+        quick_sort(number_data.begin(), number_data.end());
+        std::cout << n << "\tQuickSort\t" << CollInt::comps << "\t\t" << CollInt::swaps << "\t\t" << CollInt::moves << "\n";
 
         std::cout << "--------------------------------------------------------------\n";
     }
