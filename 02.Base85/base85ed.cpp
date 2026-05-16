@@ -3,115 +3,140 @@
 #include <string>
 #include <stdexcept>
 #include <cstring>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <errno.h>
 
 #include "base85ed.h"
 
-// TODO: remove this
-static std::vector<uint8_t> run_command_io(const std::string &command,
-        const std::vector<uint8_t> &in)
-{
-    int inpipe[2];   // parent -> child
-    int outpipe[2];  // child -> parent
+// Официальный алфавит RFC 1924
+static const char ALPHABET[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
 
-    if (pipe(inpipe) == -1) throw std::runtime_error(strerror(errno));
-    if (pipe(outpipe) == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
-
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
-
-    if (pid == 0)
-    {
-        // child
-        dup2(inpipe[0], STDIN_FILENO);
-        dup2(outpipe[1], STDOUT_FILENO);
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
-        _exit(127);
-    }
-
-    // parent
-    close(inpipe[0]);
-    close(outpipe[1]);
-
-    // write input
-    const uint8_t *wp = in.data();
-    ssize_t remaining = static_cast<ssize_t>(in.size());
-    while (remaining > 0)
-    {
-        ssize_t n = write(inpipe[1], wp, remaining);
-        if (n == -1)
-        {
-            if (errno == EINTR) continue;
-            close(inpipe[1]);
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-        remaining -= n;
-        wp += n;
-    }
-    close(inpipe[1]); // signal EOF
-
-    // read all stdout
-    std::vector<uint8_t> out;
-    uint8_t buf[4096];
-    while (true)
-    {
-        ssize_t n = read(outpipe[0], buf, sizeof(buf));
-        if (n > 0) out.insert(out.end(), buf, buf + n);
-        else if (n == 0) break;
-        else
-        {
-            if (errno == EINTR) continue;
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-    }
-    close(outpipe[0]);
-
-    int status = 0;
-    if (waitpid(pid, &status, 0) == -1) throw std::runtime_error(strerror(errno));
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        throw std::runtime_error("child exited with non-zero status");
-
-    return out;
-}
-
-
-// TODO: implement this in C++
 std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85encode(sys.stdin.buffer.read()))'",
-               bytes
-           );
+    std::vector<uint8_t> result;
+    size_t i = 0;
+    size_t size = bytes.size();
+
+    while (i < size) {
+        size_t rem = size - i;
+        
+        if (rem >= 4) {
+            // Сборка 32-битного unsigned int (Big-endian)
+            uint32_t val = (static_cast<uint32_t>(bytes[i]) << 24) |
+                           (static_cast<uint32_t>(bytes[i+1]) << 16) |
+                           (static_cast<uint32_t>(bytes[i+2]) << 8) |
+                           (static_cast<uint32_t>(bytes[i+3]));
+            i += 4;
+            
+            // Разложение числа на 5 цифр по основанию 85
+            uint32_t d4 = val % 85; val /= 85;
+            uint32_t d3 = val % 85; val /= 85;
+            uint32_t d2 = val % 85; val /= 85;
+            uint32_t d1 = val % 85; val /= 85;
+            uint32_t d0 = val % 85;
+            
+            result.push_back(ALPHABET[d0]);
+            result.push_back(ALPHABET[d1]);
+            result.push_back(ALPHABET[d2]);
+            result.push_back(ALPHABET[d3]);
+            result.push_back(ALPHABET[d4]);
+        } else {
+            // Корректная обработка неполного блока (остаток 1, 2 или 3 байта)
+            uint32_t val = 0;
+            val |= (static_cast<uint32_t>(bytes[i]) << 24);
+            if (rem > 1) val |= (static_cast<uint32_t>(bytes[i+1]) << 16);
+            if (rem > 2) val |= (static_cast<uint32_t>(bytes[i+2]) << 8);
+            i += rem;
+            
+            uint32_t d4 = val % 85; val /= 85;
+            uint32_t d3 = val % 85; val /= 85;
+            uint32_t d2 = val % 85; val /= 85;
+            uint32_t d1 = val % 85; val /= 85;
+            uint32_t d0 = val % 85;
+            
+            char block[5] = {
+                static_cast<char>(ALPHABET[d0]),
+                static_cast<char>(ALPHABET[d1]),
+                static_cast<char>(ALPHABET[d2]),
+                static_cast<char>(ALPHABET[d3]),
+                static_cast<char>(ALPHABET[d4])
+            };
+            
+            // Записываем ровно rem + 1 символов в результирующий вектор
+            for (size_t j = 0; j < rem + 1; ++j) {
+                result.push_back(block[j]);
+            }
+        }
+    }
+    return result;
 }
 
-
-// TODO: implement this in C++
 std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85decode(sys.stdin.buffer.read()))'",
-               b85str
-           );
+    // Статическая таблица обратного поиска для ускорения O(1)
+    std::vector<int> rev(256, -1);
+    for (int idx = 0; idx < 85; ++idx) {
+        rev[static_cast<unsigned char>(ALPHABET[idx])] = idx;
+    }
+
+    std::vector<uint8_t> result;
+    size_t i = 0;
+    size_t size = b85str.size();
+
+    while (i < size) {
+        size_t rem_chars = size - i;
+        if (rem_chars >= 5) {
+            uint64_t val = 0;
+            for (size_t j = 0; j < 5; ++j) {
+                int digit = rev[b85str[i + j]];
+                if (digit == -1) {
+                    throw std::runtime_error("Invalid base85 character encountered");
+                }
+                val = val * 85 + digit;
+            }
+            // Защита от переполнения 32-битного диапазона
+            if (val > 0xFFFFFFFF) {
+                throw std::runtime_error("Base85 value overflow (> 32-bit)");
+            }
+            result.push_back((val >> 24) & 0xFF);
+            result.push_back((val >> 16) & 0xFF);
+            result.push_back((val >> 8) & 0xFF);
+            result.push_back(val & 0xFF);
+            i += 5;
+        } else {
+            // Одиночный лишний символ не может существовать в валидной b85 строке
+            if (rem_chars == 1) {
+                throw std::runtime_error("Invalid base85 string length");
+            }
+            
+            uint64_t val = 0;
+            for (size_t j = 0; j < 5; ++j) {
+                int digit = 0;
+                if (j < rem_chars) {
+                    digit = rev[b85str[i + j]];
+                    if (digit == -1) {
+                        throw std::runtime_error("Invalid base85 character encountered");
+                    }
+                } else {
+                    digit = 84; // Дополнение символом '~' согласно спецификации
+                }
+                val = val * 85 + digit;
+            }
+            if (val > 0xFFFFFFFF) {
+                throw std::runtime_error("Base85 value overflow (> 32-bit)");
+            }
+            
+            uint8_t bytes[4] = {
+                static_cast<uint8_t>((val >> 24) & 0xFF),
+                static_cast<uint8_t>((val >> 16) & 0xFF),
+                static_cast<uint8_t>((val >> 8) & 0xFF),
+                static_cast<uint8_t>(val & 0xFF)
+            };
+            
+            // Восстанавливаем ровно rem_chars - 1 байт
+            for (size_t j = 0; j < rem_chars - 1; ++j) {
+                result.push_back(bytes[j]);
+            }
+            i += rem_chars;
+        }
+    }
+    return result;
 }
