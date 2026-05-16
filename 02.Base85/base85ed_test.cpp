@@ -1,45 +1,56 @@
 #include <gtest/gtest.h>
-
-#include <unistd.h>
-#include <sys/wait.h>
 #include <vector>
 #include <cstdint>
 #include <stdexcept>
-#include <string.h>
+#include <string>
 
 #include "base85ed.h"
 
-const std::vector<std::pair<const char *, const char * >> short_cases =
+// Вспомогательная функция для конвертации строковых литералов в vector<uint8_t>
+static std::vector<uint8_t> to_vec(const char *s)
 {
-    { "",     ""     },
-    { "F#",   "1"    },
-    { "F){",  "12"   },
-    { "F)}j", "123"  },
-    { "F)}kW","1234" }
+    return std::vector<uint8_t>(s, s + std::string(s).size());
+}
+
+// Тест стандартных коротких и неполных блоков
+const std::vector<std::pair<std::string, std::string>> test_cases = {
+    { "",        "" },
+    { "F#",      "1" },
+    { "F){",     "12" },
+    { "F)}j",    "123" },
+    { "F)}kW",   "1234" },
+    { "00",      "\x00" },
+    { "nm=QN",   "C++" }
 };
 
-static std::vector<uint8_t> cstr2v(const char *s)
+// Проверка кодирования (Encode)
+TEST(Base85Tests, BasicEncoding)
 {
-    return std::vector<uint8_t>(
-               s,
-               s + std::string(s).size()
-           );
-}
-
-// Тесты encode
-TEST(Base85ShortsEncode, TrivialShortEncodes)
-{
-    for (const auto &p : short_cases)
+    for (const auto &tc : test_cases)
     {
-        EXPECT_EQ(base85::encode(cstr2v(p.second)), cstr2v(p.first));
+        EXPECT_EQ(base85::encode(to_vec(tc.second.c_str())), to_vec(tc.first.c_str()));
     }
 }
 
-// Тесты decode
-TEST(Base85ShortsDecode, TrivialShortDecodes)
+// Проверка декодирования (Decode)
+TEST(Base85Tests, BasicDecoding)
 {
-    for (const auto &p : short_cases)
+    for (const auto &tc : test_cases)
     {
-        EXPECT_EQ(base85::decode(cstr2v(p.first)), cstr2v(p.second));
+        EXPECT_EQ(base85::decode(to_vec(tc.first.c_str())), to_vec(tc.second.c_str()));
     }
+}
+
+// Тестирование обработки ошибок и исключений
+TEST(Base85Tests, ExceptionHandling)
+{
+    // Одиночный символ не может существовать в валидной строке Base85
+    EXPECT_THROW(base85::decode(to_vec("F")), std::runtime_error);
+
+    // Запрещенные символы, которых нет в алфавите RFC 1924 (например, пробелы или спецсимволы)
+    EXPECT_THROW(base85::decode(to_vec("F ")), std::runtime_error);
+    EXPECT_THROW(base85::decode(to_vec("F#_")), std::runtime_error);
+
+    // Значение, вызывающее переполнение 32-битного диапазона (больше чем 85^5 - 1)
+    EXPECT_THROW(base85::decode(to_vec("~~~~~")), std::runtime_error);
 }
