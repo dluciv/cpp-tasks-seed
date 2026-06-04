@@ -1,4 +1,4 @@
-# Домашние задания по дисциплине «Алгоритмы и структуры данных»
+# Домашние  задания по дисциплине «Алгоритмы и структуры данных»
 
 ## Состояние
 - [![BuildUtestItest](../../actions/workflows/make_and_test.yml/badge.svg)](../../actions/workflows/make_and_test.yml) — Make и тесты
