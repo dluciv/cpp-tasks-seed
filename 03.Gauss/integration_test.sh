@@ -1,7 +1,9 @@
 #!/bin/bash
+set -euo pipefail
 
-status=true
+pwd
+ls -la
 
-# ---------------------------------------------------
+./gauss AB.csv > output.csv
 
-$status
+diff -u expected_output.csv output.csv
