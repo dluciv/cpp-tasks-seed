@@ -1,0 +1,81 @@
+#include <iostream>
+#include <vector>
+#include <cstdlib>
+#include <cassert>
+
+using namespace std;
+
+// сортировка вставками O(n^2)
+vector<int> insertionSort(vector<int> arr) {
+    for (int i = 1; i < arr.size(); i++) {
+        int key = arr[i], j = i - 1;
+        while (j >= 0 && arr[j] > key) { arr[j + 1] = arr[j]; j--; }
+        arr[j + 1] = key;
+    }
+    return arr;
+}
+
+// слияние двух массивов
+vector<int> mergeVec(vector<int> l, vector<int> r) {
+    vector<int> res;
+    int i = 0, j = 0;
+    while (i < l.size() && j < r.size())
+        if (l[i] < r[j]) res.push_back(l[i++]);
+        else res.push_back(r[j++]);
+    while (i < l.size()) res.push_back(l[i++]);
+    while (j < r.size()) res.push_back(r[j++]);
+    return res;
+}
+
+// сортировка слиянием O(n log n)
+vector<int> mergeSort(vector<int> arr) {
+    if (arr.size() <= 1) return arr;
+    int mid = arr.size() / 2;
+    vector<int> l(arr.begin(), arr.begin() + mid), r(arr.begin() + mid, arr.end());
+    l = mergeSort(l); r = mergeSort(r);
+    return mergeVec(l, r);
+}
+
+// проверка отсортирован ли массив
+bool isSorted(const vector<int>& a) {
+    for (int i = 1; i < a.size(); i++) if (a[i] < a[i - 1]) return false;
+    return true;
+}
+
+// генерация массива
+vector<int> genArray(int n) {
+    vector<int> a;
+    for (int i = 0; i < n; i++) a.push_back(rand() % 1000);
+    return a;
+}
+
+// юнит тесты
+void runUnitTests() {
+    vector<int> a = {5,2,4,1,3};
+    vector<int> b = {10,7,8,9,1,5};
+    vector<int> c;
+    vector<int> d = {42};
+    assert(isSorted(insertionSort(a))); assert(isSorted(mergeSort(a)));
+    assert(isSorted(insertionSort(b))); assert(isSorted(mergeSort(b)));
+    assert(isSorted(insertionSort(c))); assert(isSorted(mergeSort(c)));
+    assert(isSorted(insertionSort(d))); assert(isSorted(mergeSort(d)));
+}
+
+// интеграционный тест
+void runIntegrationTest() {
+    vector<int> sizes = {5,10,50,100};
+    for (int s : sizes) {
+        cout << "size = " << s << endl;
+        vector<int> arr = genArray(s);
+        cout << "insertion ok: " << isSorted(insertionSort(arr)) << endl;
+        cout << "merge ok: " << isSorted(mergeSort(arr)) << endl;
+        cout << "----" << endl;
+    }
+}
+
+int main() {
+    runUnitTests();
+    runIntegrationTest();
+    cout << "done" << endl;
+    return 0;
+}
