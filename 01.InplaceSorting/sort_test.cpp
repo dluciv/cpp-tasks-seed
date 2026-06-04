@@ -10,7 +10,7 @@ TEST(BubbleSortSuite, SimpleArray)
 
     bubble_sort(data.begin(), data.end());
 
-    EXPECT_EQ(data, (std::vector<int>{1, 2, 3, 4, 5}));
+    EXPECT_EQ(data, (std::vector<int> {1, 2, 3, 4, 5}));
 }
 
 TEST(BubbleSortSuite, EmptyArray)
@@ -39,7 +39,7 @@ TEST(QuickSortSuite, SimpleArray)
 
     quick_sort(data.begin(), data.end());
 
-    EXPECT_EQ(data, (std::vector<int>{1, 3, 5, 7, 9}));
+    EXPECT_EQ(data, (std::vector<int> {1, 3, 5, 7, 9}));
 }
 
 TEST(QuickSortSuite, AlreadySorted)
@@ -48,7 +48,7 @@ TEST(QuickSortSuite, AlreadySorted)
 
     quick_sort(data.begin(), data.end());
 
-    EXPECT_EQ(data, (std::vector<int>{1, 2, 3, 4, 5}));
+    EXPECT_EQ(data, (std::vector<int> {1, 2, 3, 4, 5}));
 }
 
 TEST(QuickSortSuite, Duplicates)
@@ -57,5 +57,5 @@ TEST(QuickSortSuite, Duplicates)
 
     quick_sort(data.begin(), data.end());
 
-    EXPECT_EQ(data, (std::vector<int>{1, 1, 2, 3, 3}));
+    EXPECT_EQ(data, (std::vector<int> {1, 1, 2, 3, 3}));
 }

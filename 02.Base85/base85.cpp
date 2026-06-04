@@ -81,9 +81,9 @@ int main(int argc, const char* argv[])
     else
     {
         std::function<
-            std::vector<uint8_t>(
-                const std::vector<uint8_t>&
-            )
+        std::vector<uint8_t>(
+            const std::vector<uint8_t>&
+        )
         > func = nullptr;
 
         std::string a = argv[1];
@@ -99,9 +99,9 @@ int main(int argc, const char* argv[])
         else
         {
             std::cerr
-                << "Don't know how to deal with <"
-                << a
-                << ">, use -e or -d\n";
+                    << "Don't know how to deal with <"
+                    << a
+                    << ">, use -e or -d\n";
 
             return 1;
         }

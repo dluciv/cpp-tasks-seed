@@ -10,29 +10,29 @@
 namespace
 {
 
-    const char* BASE85_ALPHABET =
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
+const char* BASE85_ALPHABET =
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
 
-    std::array<int, 256> create_decode_table()
+std::array<int, 256> create_decode_table()
+{
+    std::array<int, 256> table{};
+
+    table.fill(-1);
+
+    for (int i = 0; i < 85; ++i)
     {
-        std::array<int, 256> table{};
-
-        table.fill(-1);
-
-        for (int i = 0; i < 85; ++i)
-        {
-            table[
-                static_cast<unsigned char>(
-                    BASE85_ALPHABET[i]
-                    )
-            ] = i;
-        }
-
-        return table;
+        table[
+            static_cast<unsigned char>(
+                BASE85_ALPHABET[i]
+            )
+        ] = i;
     }
 
-    const auto DECODE_TABLE = create_decode_table();
+    return table;
+}
+
+const auto DECODE_TABLE = create_decode_table();
 
 } // namespace
 
@@ -61,7 +61,7 @@ std::vector<uint8_t> base85::encode(
             value |=
                 static_cast<uint32_t>(
                     bytes[i + j]
-                    ) << (24 - j * 8);
+                ) << (24 - j * 8);
         }
 
         char encoded[5];
@@ -86,7 +86,7 @@ std::vector<uint8_t> base85::encode(
             out.push_back(
                 static_cast<uint8_t>(
                     encoded[j]
-                    )
+                )
             );
         }
 
@@ -127,7 +127,7 @@ std::vector<uint8_t> base85::decode(
                 unsigned char ch =
                     static_cast<unsigned char>(
                         b85str[i + j]
-                        );
+                    );
 
                 digit = DECODE_TABLE[ch];
 

@@ -50,14 +50,14 @@ int main()
         std::sort(number_data.begin(), number_data.end());
 
         std::cout
-            << n
-            << "\tstd::sort\t"
-            << CollInt::comps
-            << "\t\t"
-            << CollInt::swaps
-            << "\t\t"
-            << CollInt::moves
-            << "\n";
+                << n
+                << "\tstd::sort\t"
+                << CollInt::comps
+                << "\t\t"
+                << CollInt::swaps
+                << "\t\t"
+                << CollInt::moves
+                << "\n";
 
         // ---------------- Bubble Sort ----------------
 
@@ -68,14 +68,14 @@ int main()
         bubble_sort(number_data.begin(), number_data.end());
 
         std::cout
-            << n
-            << "\tBubble\t\t"
-            << CollInt::comps
-            << "\t\t"
-            << CollInt::swaps
-            << "\t\t"
-            << CollInt::moves
-            << "\n";
+                << n
+                << "\tBubble\t\t"
+                << CollInt::comps
+                << "\t\t"
+                << CollInt::swaps
+                << "\t\t"
+                << CollInt::moves
+                << "\n";
 
         // ---------------- Quick Sort ----------------
 
@@ -86,14 +86,14 @@ int main()
         quick_sort(number_data.begin(), number_data.end());
 
         std::cout
-            << n
-            << "\tQuick\t\t"
-            << CollInt::comps
-            << "\t\t"
-            << CollInt::swaps
-            << "\t\t"
-            << CollInt::moves
-            << "\n";
+                << n
+                << "\tQuick\t\t"
+                << CollInt::comps
+                << "\t\t"
+                << CollInt::swaps
+                << "\t\t"
+                << CollInt::moves
+                << "\n";
 
         std::cout << "--------------------------------------------------------------\n";
     }

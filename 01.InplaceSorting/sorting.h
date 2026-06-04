@@ -29,7 +29,7 @@ void bubble_sort(Iterator begin, Iterator end)
     }
 }
 
-// Quick Sort 
+// Quick Sort
 
 template <typename Iterator>
 Iterator partition(Iterator begin, Iterator end)

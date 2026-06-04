@@ -18,18 +18,18 @@ const std::vector<std::pair<const char*, const char* >> short_cases =
 static std::vector<uint8_t> cstr2v(const char* s)
 {
     return std::vector<uint8_t>(
-        s,
-        s + std::string(s).size()
-    );
+               s,
+               s + std::string(s).size()
+           );
 }
 
 
 static std::vector<uint8_t> str2vec(const std::string& s)
 {
     return std::vector<uint8_t>(
-        s.begin(),
-        s.end()
-    );
+               s.begin(),
+               s.end()
+           );
 }
 
 static std::string repeat_string(
