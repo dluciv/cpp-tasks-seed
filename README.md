@@ -8,7 +8,7 @@
 
 ### [00.DummyMake](00.DummyMake)
 
-Шаблонное задание с Makefile, модульными и интеграционными тестами.
+Шаблонное задание с Makefile, модульными и интеграционными тестами
 
 ### [01.InplaceSorting](01.InplaceSorting)
 
