@@ -20,7 +20,18 @@ GaussMatrix load_csv_to_matrix(const char *filename)
         }
     }
 
-    return GaussMatrix(rcsv.size(), rcsv.begin()->size());
+    if (rcsv.empty()) return GaussMatrix(0, 0);
+
+    GaussMatrix mat(rcsv.size(), rcsv[0].size());
+    for (size_t i = 0; i < rcsv.size(); ++i)
+    {
+        for (size_t j = 0; j < rcsv[i].size(); ++j)
+        {
+            mat(i, j) = rcsv[i][j];
+        }
+    }
+
+    return mat;
 }
 
 void print_matrix_as_csv(std::ostream& out, const GaussMatrix &matrix, int prec)
