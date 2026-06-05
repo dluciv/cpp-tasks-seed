@@ -16,6 +16,9 @@ run_itest : debug
 	echo "Integration tests..."
 	./$^
 
+tidy:
+	../tidy.sh
+
 all: depends run_utest run_itest
 
 include Makefile.hdrdep

@@ -9,109 +9,108 @@
 
 #include "base85ed.h"
 
-// TODO: remove this
-static std::vector<uint8_t> run_command_io(const std::string &command,
-        const std::vector<uint8_t> &in)
+static const char* alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
+
+static uint8_t reverse_table[256];
+
+static void init_reverse()
 {
-    int inpipe[2];   // parent -> child
-    int outpipe[2];  // child -> parent
+    static bool inited = false;
+    if (inited) return;
 
-    if (pipe(inpipe) == -1) throw std::runtime_error(strerror(errno));
-    if (pipe(outpipe) == -1)
+    std::fill(std::begin(reverse_table), std::end(reverse_table), 0xFF);
+
+    for (int i = 0; i < 85; ++i)
     {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        throw std::runtime_error(strerror(errno));
+        reverse_table[(uint8_t)alphabet[i]] = i;
     }
 
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
+    inited = true;
+}
 
-    if (pid == 0)
-    {
-        // child
-        dup2(inpipe[0], STDIN_FILENO);
-        dup2(outpipe[1], STDOUT_FILENO);
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
-        _exit(127);
-    }
 
-    // parent
-    close(inpipe[0]);
-    close(outpipe[1]);
-
-    // write input
-    const uint8_t *wp = in.data();
-    ssize_t remaining = static_cast<ssize_t>(in.size());
-    while (remaining > 0)
-    {
-        ssize_t n = write(inpipe[1], wp, remaining);
-        if (n == -1)
-        {
-            if (errno == EINTR) continue;
-            close(inpipe[1]);
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-        remaining -= n;
-        wp += n;
-    }
-    close(inpipe[1]); // signal EOF
-
-    // read all stdout
+std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
+{
     std::vector<uint8_t> out;
-    uint8_t buf[4096];
-    while (true)
-    {
-        ssize_t n = read(outpipe[0], buf, sizeof(buf));
-        if (n > 0) out.insert(out.end(), buf, buf + n);
-        else if (n == 0) break;
-        else
-        {
-            if (errno == EINTR) continue;
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-    }
-    close(outpipe[0]);
 
-    int status = 0;
-    if (waitpid(pid, &status, 0) == -1) throw std::runtime_error(strerror(errno));
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        throw std::runtime_error("child exited with non-zero status");
+    size_t i = 0;
+    while (i < bytes.size())
+    {
+        uint32_t value = 0;
+        size_t chunk = 0;
+        for (; chunk < 4 && i < bytes.size(); ++chunk, ++i)
+        {
+            value = value * 256 + bytes[i];
+        }
+
+        // padding (from python realization)
+        if (chunk < 4)
+        {
+            value <<= (4 - chunk) * 8;
+        }
+
+        char buf[5];
+        for (int j = 4; j >= 0; --j)
+        {
+            buf[j] = alphabet[value % 85];
+            value /= 85;
+        }
+
+        size_t out_len = (chunk < 4) ? chunk + 1 : 5;
+        out.insert(out.end(), buf, buf + out_len);
+    }
 
     return out;
 }
 
 
-// TODO: implement this in C++
-std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
-{
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85encode(sys.stdin.buffer.read()))'",
-               bytes
-           );
-}
 
-
-// TODO: implement this in C++
 std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85decode(sys.stdin.buffer.read()))'",
-               b85str
-           );
+    init_reverse();
+
+    std::vector<uint8_t> out;
+
+    size_t i = 0;
+    while (i < b85str.size())
+    {
+        uint32_t value = 0;
+        size_t chunk = 0;
+
+        uint8_t block[5] = {0}; //read 5 symbols
+
+        for (; chunk < 5 && i < b85str.size(); ++chunk, ++i)
+        {
+            uint8_t c = b85str[i];
+            if (reverse_table[c] == 0xFF)
+                throw std::runtime_error("invalid base85 character");
+
+            block[chunk] = c;
+        }
+
+        if (chunk == 0) break;
+
+        // padding (from python realization)
+        for (size_t j = chunk; j < 5; ++j)
+        {
+            block[j] = alphabet[84];
+        }
+
+        for (int j = 0; j < 5; ++j)
+        {
+            value = value * 85 + reverse_table[block[j]];
+        }
+
+        uint8_t temp[4];
+        for (int j = 3; j >= 0; --j)
+        {
+            temp[j] = value & 0xFF;
+            value >>= 8;
+        }
+
+        size_t out_len = (chunk < 5) ? chunk - 1 : 4;
+        out.insert(out.end(), temp, temp + out_len);
+    }
+
+    return out;
 }

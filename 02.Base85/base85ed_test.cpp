@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string.h>
+#include <random>
 
 #include "base85ed.h"
 
@@ -42,4 +43,47 @@ TEST(Base85ShortsDecode, TrivialShortDecodes)
     {
         EXPECT_EQ(base85::decode(cstr2v(p.first)), cstr2v(p.second));
     }
+}
+
+
+
+
+
+
+static std::vector<uint8_t> random_bytes(size_t n)
+{
+    std::vector<uint8_t> v(n);
+    std::mt19937 rng(123);
+    std::uniform_int_distribution<int> dist(0, 255);
+
+    for (auto &x : v) x = dist(rng);
+    return v;
+}
+
+
+TEST(Base85RoundTrip, RandomDataVariousSizes)
+{
+    std::vector<size_t> sizes =
+    {
+        0, 1, 2, 3, 4, 5, 10, 50, 100, 256, 1023, 4096
+    };
+
+    for (auto sz : sizes)
+    {
+        auto data = random_bytes(sz);
+        auto encoded = base85::encode(data);
+        auto decoded = base85::decode(encoded);
+
+        EXPECT_EQ(decoded, data) << "Failed at size " << sz;
+    }
+}
+
+
+TEST(Base85RoundTrip, LargeData)
+{
+    auto data = random_bytes(100000);
+    auto encoded = base85::encode(data);
+    auto decoded = base85::decode(encoded);
+
+    EXPECT_EQ(decoded, data);
 }
