@@ -39,3 +39,24 @@
 
 # debug information files
 *.dwo
+
+.vscode/
+
+# Integration / local test artifacts
+**/.itest/
+**/test.utf8
+**/test.utf8.out
+**/test.utf16
+**/test.utf16.py
+**/random.bin
+**/random.b85
+**/random.b85.test
+**/random.bin.test
+02.Base85/base85
+02.Base85/utest
+02.Base85/Makefile.hdrdep
+03.Gauss/gauss
+03.Gauss/utest
+03.Gauss/Makefile.hdrdep
+*.hdrdep.bak
+compile_commands.json
