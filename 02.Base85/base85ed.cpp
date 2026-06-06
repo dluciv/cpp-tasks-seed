@@ -1,117 +1,171 @@
-#include <vector>
-#include <cstdint>
-#include <string>
-#include <stdexcept>
-#include <cstring>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <errno.h>
-
 #include "base85ed.h"
+#include <stdexcept>
+#include <cstdint>
+#include <cstring>
 
-// TODO: remove this
-static std::vector<uint8_t> run_command_io(const std::string &command,
-        const std::vector<uint8_t> &in)
+namespace
 {
-    int inpipe[2];   // parent -> child
-    int outpipe[2];  // child -> parent
 
-    if (pipe(inpipe) == -1) throw std::runtime_error(strerror(errno));
-    if (pipe(outpipe) == -1)
+// Алфавит Ascii85 RFC 1924 – 85 символов по порядку
+const char ENCODE_TABLE[86] = "0123456789"
+                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                              "abcdefghijklmnopqrstuvwxyz"
+                              "!#$%&()*+-;<=>?@^_`{|}~";
+
+// Таблица декодирования: ASCII код -> значение 0..84, -1 если недопустим
+int decode_table[128];
+bool tables_initialized = false;
+
+void init_tables()
+{
+    if (tables_initialized) return;
+    memset(decode_table, -1, sizeof(decode_table));
+    for (int i = 0; i < 85; ++i)
     {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        throw std::runtime_error(strerror(errno));
+        uint8_t c = ENCODE_TABLE[i];
+        decode_table[c] = i;
     }
+    // Пробельные символы (будем обрабатывать отдельно)
+    decode_table[' '] = -2;
+    decode_table['\t'] = -2;
+    decode_table['\n'] = -2;
+    decode_table['\r'] = -2;
+    decode_table['\v'] = -2;
+    decode_table['\f'] = -2;
+    tables_initialized = true;
+}
 
-    pid_t pid = fork();
-    if (pid == -1)
+inline uint32_t pack_big_endian(const uint8_t* b)
+{
+    return (uint32_t(b[0]) << 24) |
+           (uint32_t(b[1]) << 16) |
+           (uint32_t(b[2]) << 8)  |
+           (uint32_t(b[3]));
+}
+
+// Преобразование 32-битного числа в 5 base85-цифр (0..84, старший порядок)
+void unpack85(uint32_t value, uint8_t* out)
+{
+    for (int i = 4; i >= 0; --i)
     {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        throw std::runtime_error(strerror(errno));
+        out[i] = value % 85;
+        value /= 85;
     }
+}
 
-    if (pid == 0)
+} // анонимное пространство
+
+std::vector<uint8_t> base85::encode(const std::vector<uint8_t>& bytes)
+{
+    init_tables();
+    std::vector<uint8_t> result;
+    const size_t size = bytes.size();
+    size_t i = 0;
+
+    while (i < size)
     {
-        // child
-        dup2(inpipe[0], STDIN_FILENO);
-        dup2(outpipe[1], STDOUT_FILENO);
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
-        _exit(127);
-    }
-
-    // parent
-    close(inpipe[0]);
-    close(outpipe[1]);
-
-    // write input
-    const uint8_t *wp = in.data();
-    ssize_t remaining = static_cast<ssize_t>(in.size());
-    while (remaining > 0)
-    {
-        ssize_t n = write(inpipe[1], wp, remaining);
-        if (n == -1)
+        size_t remaining = size - i;
+        if (remaining >= 4)
         {
-            if (errno == EINTR) continue;
-            close(inpipe[1]);
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
+            uint32_t val = pack_big_endian(&bytes[i]);
+            uint8_t digits[5];
+            unpack85(val, digits);
+            for (int j = 0; j < 5; ++j)
+            {
+                result.push_back(ENCODE_TABLE[digits[j]]);
+            }
+            i += 4;
         }
-        remaining -= n;
-        wp += n;
-    }
-    close(inpipe[1]); // signal EOF
-
-    // read all stdout
-    std::vector<uint8_t> out;
-    uint8_t buf[4096];
-    while (true)
-    {
-        ssize_t n = read(outpipe[0], buf, sizeof(buf));
-        if (n > 0) out.insert(out.end(), buf, buf + n);
-        else if (n == 0) break;
         else
         {
-            if (errno == EINTR) continue;
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
+            // Последний неполный блок (1..3 байта)
+            uint8_t padded[4] = {0, 0, 0, 0};
+            for (size_t j = 0; j < remaining; ++j)
+            {
+                padded[j] = bytes[i + j];
+            }
+            uint32_t val = pack_big_endian(padded);
+            uint8_t digits[5];
+            unpack85(val, digits);
+            // Выводим только remaining+1 символов
+            for (size_t j = 0; j < remaining + 1; ++j)
+            {
+                result.push_back(ENCODE_TABLE[digits[j]]);
+            }
+            i += remaining;
         }
     }
-    close(outpipe[0]);
-
-    int status = 0;
-    if (waitpid(pid, &status, 0) == -1) throw std::runtime_error(strerror(errno));
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        throw std::runtime_error("child exited with non-zero status");
-
-    return out;
+    return result;
 }
 
-
-// TODO: implement this in C++
-std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
+std::vector<uint8_t> base85::decode(const std::vector<uint8_t>& b85str)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85encode(sys.stdin.buffer.read()))'",
-               bytes
-           );
-}
+    init_tables();
+    std::vector<uint8_t> result;
+    std::vector<uint8_t> group; // значения 0..84
+    group.reserve(5);
 
+    auto decode_group = [&](std::vector<uint8_t>& grp, bool end_of_stream)
+    {
+        if (grp.empty()) return;
+        if (!end_of_stream && grp.size() != 5)
+        {
+            throw std::invalid_argument("Base85: incomplete group in the middle");
+        }
+        size_t len = grp.size();
+        if (len == 1)
+        {
+            throw std::invalid_argument("Base85: single character in group");
+        }
+        // Дополняем до 5 символов цифрой 84 ('~')
+        while (grp.size() < 5)
+        {
+            grp.push_back(84);
+        }
+        uint32_t value = 0;
+        for (size_t i = 0; i < 5; ++i)
+        {
+            value = value * 85 + grp[i];
+        }
+        uint8_t bytes[4] =
+        {
+            uint8_t((value >> 24) & 0xFF),
+            uint8_t((value >> 16) & 0xFF),
+            uint8_t((value >> 8) & 0xFF),
+            uint8_t(value & 0xFF)
+        };
+        size_t out_bytes = (len != 5) ? (len - 1) : 4;
+        for (size_t i = 0; i < out_bytes; ++i)
+        {
+            result.push_back(bytes[i]);
+        }
+        grp.clear();
+    };
 
-// TODO: implement this in C++
-std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str)
-{
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85decode(sys.stdin.buffer.read()))'",
-               b85str
-           );
+    for (size_t i = 0; i < b85str.size(); ++i)
+    {
+        uint8_t c = b85str[i];
+        if (c >= 128)
+        {
+            throw std::invalid_argument(std::string("Base85: invalid character '") +
+                                        char(c) + "' (code " + std::to_string(c) + ")");
+        }
+        int val = decode_table[c];
+        if (val == -2) continue;                    // пробел – игнорируем
+        if (val == -1)
+        {
+            throw std::invalid_argument(std::string("Base85: invalid character '") +
+                                        char(c) + "' (code " + std::to_string(c) + ")");
+        }
+        group.push_back(static_cast<uint8_t>(val));
+        if (group.size() == 5)
+        {
+            decode_group(group, false);
+        }
+    }
+    if (!group.empty())
+    {
+        decode_group(group, true);
+    }
+    return result;
 }

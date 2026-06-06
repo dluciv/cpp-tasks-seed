@@ -14,13 +14,32 @@ GaussMatrix load_csv_to_matrix(const char *filename)
             std::vector<double> r{};
             for (const auto cell : row)
             {
-                r.push_back(std::stod(std::string(cell.raw())));
+                std::string s(cell.raw());
+                // Пропускаем нечисловые строки (заголовки)
+                try
+                {
+                    r.push_back(std::stod(s));
+                }
+                catch (const std::invalid_argument&)
+                {
+                    r.clear();
+                    break;  // это заголовок, пропускаем всю строку
+                }
             }
-            rcsv.push_back(r);
+            if (!r.empty())
+                rcsv.push_back(r);
         }
     }
 
-    return GaussMatrix(rcsv.size(), rcsv.begin()->size());
+    if (rcsv.empty())
+        throw std::runtime_error("Empty CSV file or no numeric data");
+
+    GaussMatrix mat(rcsv.size(), rcsv.begin()->size());
+    for (size_t i = 0; i < rcsv.size(); ++i)
+        for (size_t j = 0; j < rcsv[i].size(); ++j)
+            mat(i, j) = rcsv[i][j];
+
+    return mat;
 }
 
 void print_matrix_as_csv(std::ostream& out, const GaussMatrix &matrix, int prec)

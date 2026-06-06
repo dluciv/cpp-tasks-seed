@@ -3,16 +3,23 @@
 #include <cstdint>
 #include <functional>
 
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 #include "base85ed.h"
 
 std::vector<uint8_t> read_stdin_to_vector_iostream()
 {
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
     constexpr std::streamsize BUF_SIZE = 64 * 1024;
     std::vector<uint8_t> out;
     out.reserve(1024);
     std::vector<char> buf(BUF_SIZE);
 
-    // Ensure std::cin is in binary mode where applicable (no-op on POSIX).
     std::ios::sync_with_stdio(false);
 
     while (std::cin)
@@ -26,7 +33,6 @@ std::vector<uint8_t> read_stdin_to_vector_iostream()
         }
         if (n < BUF_SIZE)
         {
-            // either EOF or error
             break;
         }
     }
@@ -35,15 +41,16 @@ std::vector<uint8_t> read_stdin_to_vector_iostream()
 
 void write_vector_to_stdout(const std::vector<uint8_t>& data)
 {
-    // Ensure no tied flushing and faster IO (optional)
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
     std::ios::sync_with_stdio(false);
-    std::cout.setf(std::ios::fmtflags(0), std::ios::basefield); // no formatting changes
+    std::cout.setf(std::ios::fmtflags(0), std::ios::basefield);
 
     if (!data.empty())
     {
         std::cout.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
-    // flush to ensure data is written out
     std::cout.flush();
 }
 

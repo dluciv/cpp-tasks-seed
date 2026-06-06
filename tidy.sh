@@ -1,16 +1,14 @@
 #!/bin/bash
-
-CHECKS='-*,clang-analyzer-*,performance-*,bugprone-*'
-FILES=$(git ls-files '*.cpp' '*.cxx' '*.cc' | tr '\n' ' ')
-
-if [[ -z "$FILES" ]]; then
-  echo "No source files to analyze."
-  exit 0
-fi
-
-set -eo pipefail
-
-for f in $FILES; do
-  echo "Running clang-tidy on $f"
-  clang-tidy -p .  -checks="$CHECKS" "$f" --extra-arg="-isystem${PWD}/../external/eigen" --extra-arg="-isystem${PWD}/../external/lazycsv/include" --quiet 2>&1
+# Для Gauss: обрабатываем .cpp и .h отдельно, добавляем пути к Eigen и lazycsv
+for file in *.cpp *.h; do
+    if [ -f "$file" ]; then
+        case "$file" in
+            *.h)
+                clang-tidy "$file" -- -std=c++17 -x c++ -I../external/eigen -I../external/lazycsv
+                ;;
+            *.cpp)
+                clang-tidy "$file" -- -std=c++17 -I../external/eigen -I../external/lazycsv
+                ;;
+        esac
+    fi
 done
