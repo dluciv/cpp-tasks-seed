@@ -2,7 +2,7 @@
 
 #include "library.h"
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     std::cout << "Basic demo\n";
     DemoClass *a = new DemoClass();

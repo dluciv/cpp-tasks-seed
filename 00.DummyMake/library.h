@@ -3,10 +3,10 @@
 
 class DemoClass
 {
-public:
-    int foo();
-    bool bar(int x);
-    void biz(double x);
+    public:
+        int foo();
+        bool bar(int x);
+        void biz(double x);
 };
 
 #endif //#ifndef LIBRARY_H
