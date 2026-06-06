@@ -7,7 +7,7 @@ int DemoClass::foo()
 
 bool DemoClass::bar(int x)
 {
-    return x==this->foo();
+    return x == this->foo();
 }
 
 void DemoClass::biz(double a)
