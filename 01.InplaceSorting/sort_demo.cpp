@@ -17,7 +17,7 @@ std::vector<CollInt> generate_data(size_t n)
     return data;
 }
 
-void shuffle_data(std::vector<CollInt>& data)
+void shuffle_data(std::vector<CollInt> &data)
 {
     std::shuffle(data.begin(), data.end(), std::mt19937{std::random_device{}()});
 }
