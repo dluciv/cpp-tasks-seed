@@ -5,6 +5,7 @@
 #include <lazycsv.hpp>
 
 #include "util.h"
+#include "Gauss_solve.h"
 
 int main(int argc, const char *argv[])
 {
@@ -26,6 +27,11 @@ int main(int argc, const char *argv[])
     A.row(0) += c * A.row(1);
     A.coeffRef(1, 1) -= B.coeff(1, 1);
     std::cout << "Новая матрица A:\n" << A << "\n\n";
+
+
+    GaussMatrix ab = load_csv_to_matrix(argv[1]);
+    GaussVector x = Gauss_solve(ab);
+    print_vector_as_csv(std::cout, x);
 
     return 0;
 }

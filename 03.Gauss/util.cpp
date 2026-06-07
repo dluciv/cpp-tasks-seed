@@ -20,7 +20,11 @@ GaussMatrix load_csv_to_matrix(const char *filename)
         }
     }
 
-    return GaussMatrix(rcsv.size(), rcsv.begin()->size());
+    GaussMatrix m(rcsv.size(), rcsv.begin()->size());
+    for (int i = 0; i < (int)rcsv.size(); ++i)
+        for (int j = 0; j < (int)rcsv[i].size(); ++j)
+            m(i, j) = rcsv[i][j];
+    return m;
 }
 
 void print_matrix_as_csv(std::ostream& out, const GaussMatrix &matrix, int prec)
@@ -43,4 +47,12 @@ void print_matrix_as_csv(std::ostream& out, const GaussMatrix &matrix, int prec)
         }
         out << '\n';
     }
+}
+
+void print_vector_as_csv(std::ostream& out, const GaussVector &x, int prec)
+{
+    out << "X\n";
+    out << std::fixed << std::setprecision(prec);
+    for (int i = 0; i < x.size(); ++i)
+        out << x(i) << '\n';
 }
