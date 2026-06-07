@@ -1,117 +1,122 @@
 #include <vector>
 #include <cstdint>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <cstring>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <errno.h>
 
 #include "base85ed.h"
 
-// TODO: remove this
-static std::vector<uint8_t> run_command_io(const std::string &command,
-        const std::vector<uint8_t> &in)
+namespace base85
 {
-    int inpipe[2];   // parent -> child
-    int outpipe[2];  // child -> parent
 
-    if (pipe(inpipe) == -1) throw std::runtime_error(strerror(errno));
-    if (pipe(outpipe) == -1)
+static const char b85_alphabet[] =
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
+
+static int b85_value[256];
+static bool b85_table_initialized = false;
+
+static void init_b85_table()
+{
+    if (b85_table_initialized) return;
+    for (int i = 0; i < 256; i++)
     {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        throw std::runtime_error(strerror(errno));
+        b85_value[i] = -1;
     }
-
-    pid_t pid = fork();
-    if (pid == -1)
+    for (int i = 0; i < 85; i++)
     {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        throw std::runtime_error(strerror(errno));
+        b85_value[(unsigned char)b85_alphabet[i]] = i;
     }
+    b85_table_initialized = true;
+}
 
-    if (pid == 0)
+std::vector<uint8_t> encode(std::vector<uint8_t> const& bytes)
+{
+    std::vector<uint8_t> result;
+    size_t i = 0;
+    size_t n = bytes.size();
+
+    while (i < n)
     {
-        // child
-        dup2(inpipe[0], STDIN_FILENO);
-        dup2(outpipe[1], STDOUT_FILENO);
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
-        _exit(127);
-    }
+        uint32_t value = 0;
 
-    // parent
-    close(inpipe[0]);
-    close(outpipe[1]);
-
-    // write input
-    const uint8_t *wp = in.data();
-    ssize_t remaining = static_cast<ssize_t>(in.size());
-    while (remaining > 0)
-    {
-        ssize_t n = write(inpipe[1], wp, remaining);
-        if (n == -1)
+        for (int j = 0; j < 4; j++)
         {
-            if (errno == EINTR) continue;
-            close(inpipe[1]);
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
+            value <<= 8;
+            if (i + j < n)
+            {
+                value |= bytes[i + j];
+            }
         }
-        remaining -= n;
-        wp += n;
-    }
-    close(inpipe[1]); // signal EOF
 
-    // read all stdout
-    std::vector<uint8_t> out;
-    uint8_t buf[4096];
-    while (true)
-    {
-        ssize_t n = read(outpipe[0], buf, sizeof(buf));
-        if (n > 0) out.insert(out.end(), buf, buf + n);
-        else if (n == 0) break;
+        char encoded[5];
+        for (int j = 4; j >= 0; j--)
+        {
+            encoded[j] = b85_alphabet[value % 85];
+            value /= 85;
+        }
+
+        size_t block_size = n - i;
+        if (block_size >= 4)
+        {
+            result.insert(result.end(), encoded, encoded + 5);
+        }
         else
         {
-            if (errno == EINTR) continue;
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
+            result.insert(result.end(), encoded, encoded + block_size + 1);
         }
+
+        i += 4;
     }
-    close(outpipe[0]);
 
-    int status = 0;
-    if (waitpid(pid, &status, 0) == -1) throw std::runtime_error(strerror(errno));
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        throw std::runtime_error("child exited with non-zero status");
-
-    return out;
+    return result;
 }
 
-
-// TODO: implement this in C++
-std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
+std::vector<uint8_t> decode(std::vector<uint8_t> const& b85str)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85encode(sys.stdin.buffer.read()))'",
-               bytes
-           );
+    init_b85_table();
+
+    std::vector<uint8_t> result;
+    size_t i = 0;
+    size_t n = b85str.size();
+
+    if (n == 0) return result;
+
+    while (i < n)
+    {
+        size_t remaining = n - i;
+        size_t block_size = (remaining >= 5) ? 5 : remaining;
+
+        uint32_t value = 0;
+
+        for (size_t j = 0; j < 5; j++)
+        {
+            if (j < block_size)
+            {
+                int v = b85_value[b85str[i + j]];
+                if (v == -1)
+                {
+                    throw std::runtime_error("Invalid Base85 character");
+                }
+                value = value * 85 + v;
+            }
+            else
+            {
+                value = value * 85 + 84;
+            }
+        }
+
+        int bytes_to_output = block_size - 1;
+
+        for (int j = 0; j < bytes_to_output; j++)
+        {
+            int shift = 24 - j * 8;
+            result.push_back((value >> shift) & 0xFF);
+        }
+
+        i += block_size;
+    }
+
+    return result;
 }
 
-
-// TODO: implement this in C++
-std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str)
-{
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85decode(sys.stdin.buffer.read()))'",
-               b85str
-           );
 }
