@@ -12,9 +12,9 @@
 static std::vector<uint8_t> cstr2v(const char* s)
 {
     return std::vector<uint8_t>(
-        s,
-        s + std::string(s).size()
-    );
+               s,
+               s + std::string(s).size()
+           );
 }
 
 TEST(Base85Extended, EncodeDecodeEmptyString)
@@ -70,7 +70,8 @@ TEST(Base85Extended, EncodeDecodeFourChars)
 
 TEST(Base85Extended, EncodeDecodeVariousLengths)
 {
-    std::vector<std::string> test_strings = {
+    std::vector<std::string> test_strings =
+    {
         "Hello",
         "Hello, World!",
         "The quick brown fox jumps over the lazy dog",
