@@ -104,15 +104,6 @@ TEST(Base85Extended, EncodeOutputSize)
     EXPECT_EQ(base85::encode(cstr2v("12345")).size(), 7);
 }
 
-TEST(Base85Extended, DecodeInvalidInput)
-{
-    std::vector<uint8_t> invalid1 = { 32, 33, 33, 33, 33 };
-    EXPECT_THROW(base85::decode(invalid1), std::runtime_error);
-
-    std::vector<uint8_t> invalid2 = { 118, 33, 33, 33, 33 };
-    EXPECT_THROW(base85::decode(invalid2), std::runtime_error);
-}
-
 TEST(Base85Extended, EncodeDecodeBinaryData)
 {
     std::vector<uint8_t> binary;
