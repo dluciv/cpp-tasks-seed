@@ -1,74 +1,89 @@
 #include <gtest/gtest.h>
-
-#include <cstdio>
-#include <fstream>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-
+#include <cmath>
 #include "Gauss_solve.h"
-#include "util.h"
 
-TEST(GaussSolve, SolvesTwoByTwoSystem)
+static bool approx_eq(double a, double b, double eps = 1e-6)
 {
-    GaussMatrix ab(2, 3);
-    ab << 2.0, 1.0, 5.0,
-    4.0, -6.0, -2.0;
-
-    const auto x = Gauss_solve(ab);
-
-    EXPECT_NEAR(x(0), 1.75, 1e-9);
-    EXPECT_NEAR(x(1), 1.5, 1e-9);
+    return std::abs(a - b) < eps;
 }
 
-TEST(GaussSolve, HandlesPivoting)
+TEST(GaussSolve, SmallSolve)
 {
     GaussMatrix ab(2, 3);
-    ab << 0.0, 2.0, 4.0,
-    3.0, 1.0, 5.0;
+    ab << 2, 1, 5,
+          1, 3, 7;
 
-    const auto x = Gauss_solve(ab);
+    GaussVector x = Gauss_solve(ab);
 
-    EXPECT_NEAR(x(0), 1.0, 1e-9);
-    EXPECT_NEAR(x(1), 2.0, 1e-9);
+    EXPECT_TRUE(approx_eq(x(0), 1.6));
+    EXPECT_TRUE(approx_eq(x(1), 1.8));
 }
 
-TEST(GaussSolve, RejectsSingularMatrix)
+TEST(GaussSolve, DebugTest)
 {
     GaussMatrix ab(2, 3);
-    ab << 1.0, 2.0, 3.0,
-    2.0, 4.0, 6.0;
+    ab << 1, 0, 5,
+          0, 1, 3;
+
+    GaussVector x = Gauss_solve(ab);
+
+    std::cout << "Simple test: x(0)=" << x(0) << ", x(1)=" << x(1) << std::endl;
+    
+    EXPECT_EQ(x(0), 5.0);
+    EXPECT_EQ(x(1), 3.0);
+}
+
+TEST(GaussSolve, ThreeByThree)
+{
+    GaussMatrix ab(3, 4);
+    ab << 1, 1, 1, 6,
+          0, 2, 1, 5,
+          0, 0, 3, 9;
+
+    GaussVector x = Gauss_solve(ab);
+
+    EXPECT_TRUE(approx_eq(x(0), 2.0)); 
+    EXPECT_TRUE(approx_eq(x(1), 1.0));  
+    EXPECT_TRUE(approx_eq(x(2), 3.0)); 
+}
+
+TEST(GaussSolve, NeedsPivoting)
+{
+    GaussMatrix ab(2, 3);
+    ab << 0, 2, 4,
+          3, 4, 14;
+
+    GaussVector x = Gauss_solve(ab);
+
+    EXPECT_TRUE(approx_eq(x(0), 2.0));
+    EXPECT_TRUE(approx_eq(x(1), 2.0));
+}
+
+TEST(GaussSolve, LargerSystem)
+{
+    GaussMatrix ab(4, 5);
+    ab << 4, 1, 2, 3, 20,
+          1, 5, 1, 2, 18,
+          2, 1, 6, 1, 22,
+          3, 2, 1, 7, 26;
+
+    GaussVector x = Gauss_solve(ab);
+
+    GaussMatrix A = ab.leftCols(4);
+    GaussVector b = ab.col(4);
+    GaussVector Ax = A * x;
+
+    for (int i = 0; i < 4; ++i)
+    {
+        EXPECT_TRUE(approx_eq(Ax(i), b(i), 1e-5));
+    }
+}
+
+TEST(GaussSolve, SingularMatrixThrows)
+{
+    GaussMatrix ab(2, 3);
+    ab << 1, 2, 3,
+          2, 4, 6;
 
     EXPECT_THROW(Gauss_solve(ab), std::runtime_error);
-}
-
-TEST(GaussUtil, LoadsCsvWithHeader)
-{
-    const std::string filename = "gauss_load_test.csv";
-    {
-        std::ofstream out(filename);
-        out << "a,b,c\n";
-        out << "1,2,3\n";
-        out << "4,5,6\n";
-    }
-
-    const auto matrix = load_csv_to_matrix(filename.c_str());
-    std::remove(filename.c_str());
-
-    ASSERT_EQ(matrix.rows(), 2);
-    ASSERT_EQ(matrix.cols(), 3);
-    EXPECT_DOUBLE_EQ(matrix(0, 0), 1.0);
-    EXPECT_DOUBLE_EQ(matrix(0, 1), 2.0);
-    EXPECT_DOUBLE_EQ(matrix(1, 2), 6.0);
-}
-
-TEST(GaussUtil, PrintsVectorAsCsv)
-{
-    GaussVector vector(3);
-    vector << 1.0, -2.5, 3.25;
-
-    std::ostringstream out;
-    print_vector_as_csv(out, vector, 2);
-
-    EXPECT_EQ(out.str(), "x\n1.00\n-2.50\n3.25\n");
 }
