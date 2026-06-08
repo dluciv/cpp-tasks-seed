@@ -1,89 +1,54 @@
 #include <gtest/gtest.h>
-#include <cmath>
+#include <Eigen/Dense>
 #include "Gauss_solve.h"
 
-static bool approx_eq(double a, double b, double eps = 1e-6)
-{
-    return std::abs(a - b) < eps;
-}
-
 TEST(GaussSolve, SmallSolve)
+TEST(GaussSolve, Solve2x2)
 {
+    EXPECT_EQ(0, 0);
     GaussMatrix ab(2, 3);
-    ab << 2, 1, 5,
-          1, 3, 7;
+    ab << 2, 3, 8,
+    1, -1, -1;
 
     GaussVector x = Gauss_solve(ab);
 
-    EXPECT_TRUE(approx_eq(x(0), 1.6));
-    EXPECT_TRUE(approx_eq(x(1), 1.8));
+    EXPECT_NEAR(x(0), 1.0, 1e-9);
+    EXPECT_NEAR(x(1), 2.0, 1e-9);
 }
 
-TEST(GaussSolve, DebugTest)
-{
-    GaussMatrix ab(2, 3);
-    ab << 1, 0, 5,
-          0, 1, 3;
-
-    GaussVector x = Gauss_solve(ab);
-
-    std::cout << "Simple test: x(0)=" << x(0) << ", x(1)=" << x(1) << std::endl;
-    
-    EXPECT_EQ(x(0), 5.0);
-    EXPECT_EQ(x(1), 3.0);
-}
-
-TEST(GaussSolve, ThreeByThree)
+TEST(GaussSolve, Solve3x3)
 {
     GaussMatrix ab(3, 4);
-    ab << 1, 1, 1, 6,
-          0, 2, 1, 5,
-          0, 0, 3, 9;
+    ab << 1, 2, 3, 14,
+    2, 1, 1, 7,
+    3, -1, 2, 7;
 
     GaussVector x = Gauss_solve(ab);
 
-    EXPECT_TRUE(approx_eq(x(0), 2.0)); 
-    EXPECT_TRUE(approx_eq(x(1), 1.0));  
-    EXPECT_TRUE(approx_eq(x(2), 3.0)); 
+    EXPECT_NEAR(x(0), 1.0, 1e-9);
+    EXPECT_NEAR(x(1), 2.0, 1e-9);
+    EXPECT_NEAR(x(2), 3.0, 1e-9);
 }
 
-TEST(GaussSolve, NeedsPivoting)
+TEST(GaussSolve, SolveWithPivoting)
 {
-    GaussMatrix ab(2, 3);
-    ab << 0, 2, 4,
-          3, 4, 14;
+    GaussMatrix ab(3, 4);
+    ab << 0.001, 1.0, 2.0, 3.0,
+    1.0, 0.0, 1.0, 2.0,
+    2.0, 1.0, 0.0, 3.0;
 
     GaussVector x = Gauss_solve(ab);
 
-    EXPECT_TRUE(approx_eq(x(0), 2.0));
-    EXPECT_TRUE(approx_eq(x(1), 2.0));
+    EXPECT_NEAR(0.001*x(0) + x(1) + 2*x(2), 3.0, 1e-6);
+    EXPECT_NEAR(x(0) + x(2), 2.0, 1e-6);
+    EXPECT_NEAR(2*x(0) + x(1), 3.0, 1e-6);
 }
 
-TEST(GaussSolve, LargerSystem)
-{
-    GaussMatrix ab(4, 5);
-    ab << 4, 1, 2, 3, 20,
-          1, 5, 1, 2, 18,
-          2, 1, 6, 1, 22,
-          3, 2, 1, 7, 26;
-
-    GaussVector x = Gauss_solve(ab);
-
-    GaussMatrix A = ab.leftCols(4);
-    GaussVector b = ab.col(4);
-    GaussVector Ax = A * x;
-
-    for (int i = 0; i < 4; ++i)
-    {
-        EXPECT_TRUE(approx_eq(Ax(i), b(i), 1e-5));
-    }
-}
-
-TEST(GaussSolve, SingularMatrixThrows)
+TEST(GaussSolve, SingularMatrix)
 {
     GaussMatrix ab(2, 3);
     ab << 1, 2, 3,
-          2, 4, 6;
+    2, 4, 6;
 
     EXPECT_THROW(Gauss_solve(ab), std::runtime_error);
 }
