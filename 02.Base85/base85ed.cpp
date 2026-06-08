@@ -1,153 +1,158 @@
-#include <gtest/gtest.h>
-
 #include <vector>
 #include <cstdint>
-#include <stdexcept>
-#include <string.h>
 #include <string>
+#include <stdexcept>
 
 #include "base85ed.h"
 
-const std::vector<std::pair<const char *, const char *>> short_cases =
+namespace
 {
-    { "",     ""     },
-    { "F#",   "1"    },
-    { "F){",  "12"   },
-    { "F)}j", "123"  },
-    { "F)}kW","1234" }
-};
+    const char *BASE85_ALPHABET =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "!#$%&()*+-;<=>?@^_`{|}~";
 
-static std::vector<uint8_t> cstr2v(const char *s)
-{
-    return std::vector<uint8_t>(s, s + std::string(s).size());
-}
-
-TEST(Base85Encode, Empty)
-{
-    std::vector<uint8_t> data;
-    std::vector<uint8_t> encoded = base85::encode(data);
-    EXPECT_EQ(encoded, std::vector<uint8_t>());
-}
-
-TEST(Base85Decode, Empty)
-{
-    std::vector<uint8_t> data;
-    std::vector<uint8_t> decoded = base85::decode(data);
-    EXPECT_EQ(decoded, std::vector<uint8_t>());
-}
-
-TEST(Base85RoundTrip, OneByte)
-{
-    std::vector<uint8_t> data = cstr2v("1");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, TwoBytes)
-{
-    std::vector<uint8_t> data = cstr2v("12");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, ThreeBytes)
-{
-    std::vector<uint8_t> data = cstr2v("123");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, FourBytes)
-{
-    std::vector<uint8_t> data = cstr2v("1234");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, FiveBytes)
-{
-    std::vector<uint8_t> data = cstr2v("12345");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, ShortText)
-{
-    std::vector<uint8_t> data = cstr2v("hello");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, LongText)
-{
-    std::vector<uint8_t> data = cstr2v("Base85 test string for algorithms and data structures");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, WithSpaces)
-{
-    std::vector<uint8_t> data = cstr2v("a b c d e f g");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, WithPunctuation)
-{
-    std::vector<uint8_t> data = cstr2v("Hello, world! 12345.");
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85RoundTrip, ZeroBytesInside)
-{
-    std::vector<uint8_t> data =
+    int char_to_value(uint8_t c)
     {
-        0, 1, 2, 3, 0, 4, 5, 0, 255
-    };
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
+        for (int i = 0; i < 85; ++i)
+        {
+            if (static_cast<uint8_t>(BASE85_ALPHABET[i]) == c)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+} // namespace
 
-TEST(Base85RoundTrip, AllByteValues)
+std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
 {
-    std::vector<uint8_t> data;
-    for (int i = 0; i < 256; ++i)
+    std::vector<uint8_t> result;
+
+    size_t i = 0;
+    while (i + 4 <= bytes.size())
     {
-        data.push_back(static_cast<uint8_t>(i));
+        uint32_t value = 0;
+        value |= static_cast<uint32_t>(bytes[i]) << 24;
+        value |= static_cast<uint32_t>(bytes[i + 1]) << 16;
+        value |= static_cast<uint32_t>(bytes[i + 2]) << 8;
+        value |= static_cast<uint32_t>(bytes[i + 3]);
+
+        uint8_t block[5];
+        for (int j = 4; j >= 0; --j)
+        {
+            block[j] = static_cast<uint8_t>(BASE85_ALPHABET[value % 85]);
+            value /= 85;
+        }
+
+        for (int j = 0; j < 5; ++j)
+        {
+            result.push_back(block[j]);
+        }
+
+        i += 4;
     }
 
-    EXPECT_EQ(base85::decode(base85::encode(data)), data);
-}
-
-TEST(Base85Decode, InvalidTailLengthOne)
-{
-    std::vector<uint8_t> bad = cstr2v("0");
-    EXPECT_THROW(base85::decode(bad), std::runtime_error);
-}
-
-TEST(Base85Decode, InvalidCharacterSpace)
-{
-    std::vector<uint8_t> bad = cstr2v("0000 ");
-    EXPECT_THROW(base85::decode(bad), std::runtime_error);
-}
-
-TEST(Base85Decode, InvalidCharacterQuote)
-{
-    std::vector<uint8_t> bad = cstr2v("\"0000");
-    EXPECT_THROW(base85::decode(bad), std::runtime_error);
-}
-
-TEST(Base85Decode, InvalidCharacterBackslash)
-{
-    std::vector<uint8_t> bad = cstr2v("\\0000");
-    EXPECT_THROW(base85::decode(bad), std::runtime_error);
-}
-
-// Тесты encode
-TEST(Base85ShortsEncode, TrivialShortEncodes)
-{
-    for (const auto &p : short_cases)
+    size_t rest = bytes.size() - i;
+    if (rest > 0)
     {
-        EXPECT_EQ(base85::encode(cstr2v(p.second)), cstr2v(p.first));
+        uint32_t value = 0;
+
+        value |= static_cast<uint32_t>(bytes[i]) << 24;
+        if (rest >= 2)
+        {
+            value |= static_cast<uint32_t>(bytes[i + 1]) << 16;
+        }
+        if (rest >= 3)
+        {
+            value |= static_cast<uint32_t>(bytes[i + 2]) << 8;
+        }
+
+        uint8_t block[5];
+        for (int j = 4; j >= 0; --j)
+        {
+            block[j] = static_cast<uint8_t>(BASE85_ALPHABET[value % 85]);
+            value /= 85;
+        }
+
+        for (size_t j = 0; j < rest + 1; ++j)
+        {
+            result.push_back(block[j]);
+        }
     }
+
+    return result;
 }
 
-// Тесты decode
-TEST(Base85ShortsDecode, TrivialShortDecodes)
+std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str)
 {
-    for (const auto &p : short_cases)
+    std::vector<uint8_t> result;
+
+    size_t i = 0;
+    while (i < b85str.size())
     {
-        EXPECT_EQ(base85::decode(cstr2v(p.first)), cstr2v(p.second));
+        size_t left = b85str.size() - i;
+
+        if (left >= 5)
+        {
+            uint32_t value = 0;
+
+            for (int j = 0; j < 5; ++j)
+            {
+                int digit = char_to_value(b85str[i + j]);
+                if (digit == -1)
+                {
+                    throw std::runtime_error("invalid base85 character");
+                }
+                value = value * 85 + static_cast<uint32_t>(digit);
+            }
+
+            result.push_back(static_cast<uint8_t>((value >> 24) & 255));
+            result.push_back(static_cast<uint8_t>((value >> 16) & 255));
+            result.push_back(static_cast<uint8_t>((value >> 8) & 255));
+            result.push_back(static_cast<uint8_t>(value & 255));
+
+            i += 5;
+        }
+        else
+        {
+            if (left == 1)
+            {
+                throw std::runtime_error("invalid base85 tail");
+            }
+
+            uint32_t value = 0;
+
+            for (size_t j = 0; j < left; ++j)
+            {
+                int digit = char_to_value(b85str[i + j]);
+                if (digit == -1)
+                {
+                    throw std::runtime_error("invalid base85 character");
+                }
+                value = value * 85 + static_cast<uint32_t>(digit);
+            }
+
+            for (size_t j = left; j < 5; ++j)
+            {
+                value = value * 85 + 84;
+            }
+
+            uint8_t block[4];
+            block[0] = static_cast<uint8_t>((value >> 24) & 255);
+            block[1] = static_cast<uint8_t>((value >> 16) & 255);
+            block[2] = static_cast<uint8_t>((value >> 8) & 255);
+            block[3] = static_cast<uint8_t>(value & 255);
+
+            for (size_t j = 0; j < left - 1; ++j)
+            {
+                result.push_back(block[j]);
+            }
+
+            break;
+        }
     }
+
+    return result;
 }
