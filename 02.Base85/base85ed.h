@@ -1,8 +1,8 @@
 #ifndef __BASE85ED__
 #define __BASE85ED__
 
-#include <vector>
 #include <cstdint>
+#include <vector>
 
 /**
  * @namespace base85
@@ -19,8 +19,11 @@ namespace base85
  *
  * @see decode()
  */
-std::vector<uint8_t> encode(std::vector<uint8_t> const &bytes); // TODO: add @throws if needed
+std::vector<uint8_t>
+encode(std::vector<uint8_t> const &bytes); // TODO: add @throws if needed
 
+std::vector<uint8_t> encodeBytes(uint8_t &byte1, uint8_t &byte2, uint8_t &byte3,
+                                 uint8_t &byte4);
 
 /**
  * @brief Decodes Base85 to bytes.
@@ -30,7 +33,10 @@ std::vector<uint8_t> encode(std::vector<uint8_t> const &bytes); // TODO: add @th
  *
  * @see encode()
  */
-std::vector<uint8_t> decode(std::vector<uint8_t> const &b85str); // TODO: add @throws if needed
+std::vector<uint8_t>
+decode(std::vector<uint8_t> const &b85str); // TODO: add @throws if needed
+std::vector<uint8_t> decodeChars(uint8_t &char1, uint8_t &char2, uint8_t &char3,
+                                 uint8_t &char4, uint8_t &char5);
 
 } // namespace base85
 
