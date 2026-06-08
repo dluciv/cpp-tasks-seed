@@ -1,6 +1,8 @@
 #include <string>
 #include <iomanip>
+#include <vector>
 #include <lazycsv.hpp>
+#include <stdexcept>
 
 #include "util.h"
 
@@ -12,25 +14,41 @@ GaussMatrix load_csv_to_matrix(const char *filename)
         for (const auto row : parser)
         {
             std::vector<double> r{};
-            for (const auto cell : row)
+            try
             {
-                r.push_back(std::stod(std::string(cell.raw())));
+                for (const auto cell : row)
+                {
+                    r.push_back(std::stod(std::string(cell.raw())));
+                }
+                rcsv.push_back(r);
             }
-            rcsv.push_back(r);
+            catch (const std::invalid_argument&)
+            {
+                continue;
+            }
         }
     }
 
-    return GaussMatrix(rcsv.size(), rcsv.begin()->size());
+    if (rcsv.empty())
+    {
+        return GaussMatrix(0, 0);
+    }
+
+    GaussMatrix mat(rcsv.size(), rcsv[0].size());
+    for (size_t i = 0; i < rcsv.size(); ++i)
+    {
+        for (size_t j = 0; j < rcsv[i].size(); ++j)
+        {
+            mat(i, j) = rcsv[i][j];
+        }
+    }
+
+    return mat;
 }
 
 void print_matrix_as_csv(std::ostream& out, const GaussMatrix &matrix, int prec)
 {
-    for (int j = 0; j < matrix.cols(); ++j)
-        out << "A,";
-    out << "B\n";
-
     out << std::fixed << std::setprecision(prec);
-
     for (int i = 0; i < matrix.rows(); ++i)
     {
         for (int j = 0; j < matrix.cols(); ++j)
