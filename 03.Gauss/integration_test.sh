@@ -1,47 +1,65 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-status=true
-PROGRAM="./gauss"
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
 
-echo "Test 1: Solve from CSV"
-$PROGRAM AB.csv output.csv
-if [ -f output.csv ]; then
-    echo "PASS: output.csv created"
-else
-    echo "FAIL: output.csv not created"
-    status=false
-fi
-
-echo "Test 2: Compare with expected output"
-cat > expected.csv << 'EOF'
-A0,A1,B
-1.000000,1.500000,4.000000
--0.000000,1.000000,2.000000
-
-Solution:
-x0,x1,
-1.000000,2.000000
+cat >"$tmpdir/small.csv" <<'EOF'
+a,b,c
+2,1,5
+4,-6,-2
 EOF
 
-if diff --strip-trailing-cr output.csv expected.csv > /dev/null 2>&1; then
-    echo "PASS: output matches expected"
-else
-    echo "FAIL: output differs"
-    diff --strip-trailing-cr output.csv expected.csv
-    status=false
-fi
+cat >"$tmpdir/small.expected.csv" <<'EOF'
+x
+1.750000
+1.500000
+EOF
 
-echo "Test 3: Generate random system"
-$PROGRAM --generate 5
-if [ $? -eq 0 ]; then
-    echo "PASS: random system solved"
-else
-    echo "FAIL: random system failed"
-    status=false
-fi
+python3 - "$tmpdir" <<'PY'
+import pathlib
+import random
+import sys
 
-rm -f output.csv expected.csv
+outdir = pathlib.Path(sys.argv[1])
+rng = random.Random(37945656)
+n = 12
+solution = [float(i + 1) for i in range(n)]
+matrix = [[0.0] * n for _ in range(n)]
 
-$status
+for i in range(n):
+    matrix[i][i] = float(2 ** (i % 6))
+
+for i in range(1, n):
+    for j in range(i):
+        factor = float(rng.randint(-3, 3))
+        if factor == 0.0:
+            continue
+        for k in range(n):
+            matrix[i][k] += factor * matrix[j][k]
+
+rhs = []
+for row in matrix:
+    rhs.append(sum(a * x for a, x in zip(row, solution)))
+
+with (outdir / "large.csv").open("w", encoding="utf-8") as f:
+    header = ",".join(f"a{i}" for i in range(n)) + ",b\n"
+    f.write(header)
+    for row, b in zip(matrix, rhs):
+        f.write(",".join(f"{value:.0f}" for value in row))
+        f.write(f",{b:.0f}\n")
+
+with (outdir / "large.expected.csv").open("w", encoding="utf-8") as f:
+    f.write("x\n")
+    for value in solution:
+        f.write(f"{value:.6f}\n")
+PY
+
+./gauss "$tmpdir/small.csv" >"$tmpdir/small.actual.csv"
+./gauss "$tmpdir/large.csv" >"$tmpdir/large.actual.csv"
+
+cmp "$tmpdir/small.expected.csv" "$tmpdir/small.actual.csv"
+cmp "$tmpdir/large.expected.csv" "$tmpdir/large.actual.csv"
+
+echo "Integration tests passed."
