@@ -5,27 +5,28 @@
 #include <lazycsv.hpp>
 
 #include "util.h"
+#include "Gauss_solve.h"
 
 int main(int argc, const char *argv[])
 {
-    auto A = load_csv_to_matrix(argv[1]);
+    if (argc < 2)
+    {
+        std::cerr << "Usage: " << argv[0] << " <input.csv>" << std::endl;
+        return 1;
+    }
 
-    Eigen::MatrixXd B(3, 2); // ColMajor по-умолчанию
-    B << 7, 8,
-    9, 10,
-    11, 12;
+    GaussMatrix ab = load_csv_to_matrix(argv[1]);
 
-    Eigen::MatrixXd C = A * B;
+    std::cout << "Augmented matrix [A|b]:" << std::endl;
+    std::cout << ab << std::endl << std::endl;
 
-    std::cout << "Матрица A:\n" << A << "\n\n";
-    std::cout << "Матрица B:\n" << B << "\n\n";
-    std::cout << "Результат умножения (C = A * B):\n" << C << "\n";
+    GaussVector x = Gauss_solve(ab);
 
-    // Редактирование на месте
-    double c = 2.0;
-    A.row(0) += c * A.row(1);
-    A.coeffRef(1, 1) -= B.coeff(1, 1);
-    std::cout << "Новая матрица A:\n" << A << "\n\n";
+    std::cout << "Solution x:" << std::endl;
+    std::cout << x << std::endl << std::endl;
+
+    std::cout << "Result as CSV:" << std::endl;
+    print_matrix_as_csv(std::cout, x, 6);
 
     return 0;
 }
