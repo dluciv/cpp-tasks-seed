@@ -1,77 +1,63 @@
 #include "Gauss_solve.h"
-
 #include <cmath>
 #include <stdexcept>
 
-namespace
+GaussVector Gauss_solve(GaussMatrix &ab)
 {
-constexpr double kEpsilon = 1e-12;
-}
+    const int n = ab.rows();
+    const int m = ab.cols(); 
 
-GaussVector Gauss_solve(GaussMatrix& ab)
-{
-    if (ab.cols() != ab.rows() + 1)
+    if (m != n + 1)
     {
-        throw std::invalid_argument("Expected an augmented matrix of size N x (N + 1)");
+        throw std::runtime_error("Invalid augmented matrix dimensions");
     }
 
-    const Eigen::Index n = ab.rows();
-
-    for (Eigen::Index pivot_col = 0; pivot_col < n; ++pivot_col)
+    for (int col = 0; col < n; ++col)
     {
-        Eigen::Index pivot_row = pivot_col;
-        double pivot_abs = std::abs(ab(pivot_row, pivot_col));
-
-        for (Eigen::Index row = pivot_col + 1; row < n; ++row)
+        int max_row = col;
+        double max_val = std::abs(ab(col, col));
+        for (int row = col + 1; row < n; ++row)
         {
-            const double candidate_abs = std::abs(ab(row, pivot_col));
-            if (candidate_abs > pivot_abs)
+            double val = std::abs(ab(row, col));
+            if (val > max_val)
             {
-                pivot_abs = candidate_abs;
-                pivot_row = row;
+                max_val = val;
+                max_row = row;
             }
         }
 
-        if (pivot_abs < kEpsilon)
+        if (max_val < 1e-10)
         {
-            throw std::runtime_error("Singular matrix");
+            throw std::runtime_error("Matrix is singular or nearly singular");
         }
 
-        if (pivot_row != pivot_col)
+        // Обмен строк
+        if (max_row != col)
         {
-            ab.row(pivot_col).swap(ab.row(pivot_row));
+            ab.row(col).swap(ab.row(max_row));
         }
 
-        for (Eigen::Index row = pivot_col + 1; row < n; ++row)
+        // Исключение переменных
+        for (int row = col + 1; row < n; ++row)
         {
-            const double factor = ab(row, pivot_col) / ab(pivot_col, pivot_col);
-            ab.row(row).segment(pivot_col, ab.cols() - pivot_col) -=
-                factor * ab.row(pivot_col).segment(pivot_col, ab.cols() - pivot_col);
-            ab(row, pivot_col) = 0.0;
+            double factor = ab(row, col) / ab(col, col);
+            for (int j = col; j < m; ++j)
+            {
+                ab(row, j) -= factor * ab(col, j);
+            }
         }
     }
 
-    GaussVector solution(n);
-    for (Eigen::Index row = n - 1; row >= 0; --row)
+    GaussVector x(n);
+    for (int i = n - 1; i >= 0; --i)
     {
-        double rhs = ab(row, n);
-        if (row + 1 < n)
+        double sum = ab(i, n);
+        for (int j = i + 1; j < n; ++j)
         {
-            rhs -= ab.row(row).segment(row + 1, n - row - 1).dot(solution.segment(row + 1, n - row - 1));
+            sum -= ab(i, j) * x(j);
         }
-
-        const double diagonal = ab(row, row);
-        if (std::abs(diagonal) < kEpsilon)
-        {
-            throw std::runtime_error("Singular matrix");
-        }
-
-        solution(row) = rhs / diagonal;
-        if (row == 0)
-        {
-            break;
-        }
+        x(i) = sum / ab(i, i);
     }
 
-    return solution;
+    return x;
 }
