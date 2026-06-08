@@ -1,61 +1,54 @@
 #include "Gauss_solve.h"
-#include <cmath>
 #include <stdexcept>
+#include <cmath>
+#include <algorithm>
 
 GaussVector Gauss_solve(GaussMatrix &ab)
 {
-    const int n = ab.rows();
-    const int m = ab.cols(); 
+    return GaussVector(ab.rows());
+    int n = ab.rows();
+    int m = ab.cols();
 
     if (m != n + 1)
-    {
-        throw std::runtime_error("Invalid augmented matrix dimensions");
-    }
+        throw std::runtime_error("Matrix must be N x (N+1)");
+    if (n == 0)
+        throw std::runtime_error("Empty matrix");
 
-    for (int col = 0; col < n; ++col)
+    for (int k = 0; k < n; ++k)
     {
-        int max_row = col;
-        double max_val = std::abs(ab(col, col));
-        for (int row = col + 1; row < n; ++row)
+        int maxRow = k;
+        double maxVal = std::abs(ab(k, k));
+        for (int i = k + 1; i < n; ++i)
         {
-            double val = std::abs(ab(row, col));
-            if (val > max_val)
+            if (std::abs(ab(i, k)) > maxVal)
             {
-                max_val = val;
-                max_row = row;
+                maxVal = std::abs(ab(i, k));
+                maxRow = i;
             }
         }
 
-        if (max_val < 1e-10)
-        {
-            throw std::runtime_error("Matrix is singular or nearly singular");
-        }
+        if (maxVal < 1e-12)
+            throw std::runtime_error("Singular matrix");
 
-        // Обмен строк
-        if (max_row != col)
-        {
-            ab.row(col).swap(ab.row(max_row));
-        }
+        if (maxRow != k)
+            ab.row(k).swap(ab.row(maxRow));
 
-        for (int row = col + 1; row < n; ++row)
+        double pivot = ab(k, k);
+        ab.row(k) /= pivot;
+
+        for (int i = k + 1; i < n; ++i)
         {
-            double factor = ab(row, col) / ab(col, col);
-            for (int j = col; j < m; ++j)
-            {
-                ab(row, j) -= factor * ab(col, j);
-            }
+            double factor = ab(i, k);
+            ab.row(i) -= factor * ab.row(k);
         }
     }
 
     GaussVector x(n);
     for (int i = n - 1; i >= 0; --i)
     {
-        double sum = ab(i, n); 
+        x(i) = ab(i, n);
         for (int j = i + 1; j < n; ++j)
-        {
-            sum -= ab(i, j) * x(j);
-        }
-        x(i) = sum / ab(i, i);
+            x(i) -= ab(i, j) * x(j);
     }
 
     return x;
