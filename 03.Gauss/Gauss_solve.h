@@ -1,5 +1,3 @@
-#pragma once
-
 #include "util.h"
 
-GaussVector Gauss_solve(GaussMatrix& ab);
+GaussVector Gauss_solve(GaussMatrix &ab);
