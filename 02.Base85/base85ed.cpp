@@ -1,117 +1,153 @@
+#include <gtest/gtest.h>
+
 #include <vector>
 #include <cstdint>
-#include <string>
 #include <stdexcept>
-#include <cstring>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <errno.h>
+#include <string.h>
+#include <string>
 
 #include "base85ed.h"
 
-// TODO: remove this
-static std::vector<uint8_t> run_command_io(const std::string &command,
-        const std::vector<uint8_t> &in)
+const std::vector<std::pair<const char *, const char *>> short_cases =
 {
-    int inpipe[2];   // parent -> child
-    int outpipe[2];  // child -> parent
+    { "",     ""     },
+    { "F#",   "1"    },
+    { "F){",  "12"   },
+    { "F)}j", "123"  },
+    { "F)}kW","1234" }
+};
 
-    if (pipe(inpipe) == -1) throw std::runtime_error(strerror(errno));
-    if (pipe(outpipe) == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
-
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        throw std::runtime_error(strerror(errno));
-    }
-
-    if (pid == 0)
-    {
-        // child
-        dup2(inpipe[0], STDIN_FILENO);
-        dup2(outpipe[1], STDOUT_FILENO);
-        close(inpipe[0]);
-        close(inpipe[1]);
-        close(outpipe[0]);
-        close(outpipe[1]);
-        execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
-        _exit(127);
-    }
-
-    // parent
-    close(inpipe[0]);
-    close(outpipe[1]);
-
-    // write input
-    const uint8_t *wp = in.data();
-    ssize_t remaining = static_cast<ssize_t>(in.size());
-    while (remaining > 0)
-    {
-        ssize_t n = write(inpipe[1], wp, remaining);
-        if (n == -1)
-        {
-            if (errno == EINTR) continue;
-            close(inpipe[1]);
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-        remaining -= n;
-        wp += n;
-    }
-    close(inpipe[1]); // signal EOF
-
-    // read all stdout
-    std::vector<uint8_t> out;
-    uint8_t buf[4096];
-    while (true)
-    {
-        ssize_t n = read(outpipe[0], buf, sizeof(buf));
-        if (n > 0) out.insert(out.end(), buf, buf + n);
-        else if (n == 0) break;
-        else
-        {
-            if (errno == EINTR) continue;
-            close(outpipe[0]);
-            waitpid(pid, nullptr, 0);
-            throw std::runtime_error(strerror(errno));
-        }
-    }
-    close(outpipe[0]);
-
-    int status = 0;
-    if (waitpid(pid, &status, 0) == -1) throw std::runtime_error(strerror(errno));
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        throw std::runtime_error("child exited with non-zero status");
-
-    return out;
+static std::vector<uint8_t> cstr2v(const char *s)
+{
+    return std::vector<uint8_t>(s, s + std::string(s).size());
 }
 
-
-// TODO: implement this in C++
-std::vector<uint8_t> base85::encode(std::vector<uint8_t> const &bytes)
+TEST(Base85Encode, Empty)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85encode(sys.stdin.buffer.read()))'",
-               bytes
-           );
+    std::vector<uint8_t> data;
+    std::vector<uint8_t> encoded = base85::encode(data);
+    EXPECT_EQ(encoded, std::vector<uint8_t>());
 }
 
-
-// TODO: implement this in C++
-std::vector<uint8_t> base85::decode(std::vector<uint8_t> const &b85str)
+TEST(Base85Decode, Empty)
 {
-    return run_command_io(
-               "/usr/bin/env -S python3 -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85decode(sys.stdin.buffer.read()))'",
-               b85str
-           );
+    std::vector<uint8_t> data;
+    std::vector<uint8_t> decoded = base85::decode(data);
+    EXPECT_EQ(decoded, std::vector<uint8_t>());
+}
+
+TEST(Base85RoundTrip, OneByte)
+{
+    std::vector<uint8_t> data = cstr2v("1");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, TwoBytes)
+{
+    std::vector<uint8_t> data = cstr2v("12");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, ThreeBytes)
+{
+    std::vector<uint8_t> data = cstr2v("123");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, FourBytes)
+{
+    std::vector<uint8_t> data = cstr2v("1234");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, FiveBytes)
+{
+    std::vector<uint8_t> data = cstr2v("12345");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, ShortText)
+{
+    std::vector<uint8_t> data = cstr2v("hello");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, LongText)
+{
+    std::vector<uint8_t> data = cstr2v("Base85 test string for algorithms and data structures");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, WithSpaces)
+{
+    std::vector<uint8_t> data = cstr2v("a b c d e f g");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, WithPunctuation)
+{
+    std::vector<uint8_t> data = cstr2v("Hello, world! 12345.");
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, ZeroBytesInside)
+{
+    std::vector<uint8_t> data =
+    {
+        0, 1, 2, 3, 0, 4, 5, 0, 255
+    };
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85RoundTrip, AllByteValues)
+{
+    std::vector<uint8_t> data;
+    for (int i = 0; i < 256; ++i)
+    {
+        data.push_back(static_cast<uint8_t>(i));
+    }
+
+    EXPECT_EQ(base85::decode(base85::encode(data)), data);
+}
+
+TEST(Base85Decode, InvalidTailLengthOne)
+{
+    std::vector<uint8_t> bad = cstr2v("0");
+    EXPECT_THROW(base85::decode(bad), std::runtime_error);
+}
+
+TEST(Base85Decode, InvalidCharacterSpace)
+{
+    std::vector<uint8_t> bad = cstr2v("0000 ");
+    EXPECT_THROW(base85::decode(bad), std::runtime_error);
+}
+
+TEST(Base85Decode, InvalidCharacterQuote)
+{
+    std::vector<uint8_t> bad = cstr2v("\"0000");
+    EXPECT_THROW(base85::decode(bad), std::runtime_error);
+}
+
+TEST(Base85Decode, InvalidCharacterBackslash)
+{
+    std::vector<uint8_t> bad = cstr2v("\\0000");
+    EXPECT_THROW(base85::decode(bad), std::runtime_error);
+}
+
+// Тесты encode
+TEST(Base85ShortsEncode, TrivialShortEncodes)
+{
+    for (const auto &p : short_cases)
+    {
+        EXPECT_EQ(base85::encode(cstr2v(p.second)), cstr2v(p.first));
+    }
+}
+
+// Тесты decode
+TEST(Base85ShortsDecode, TrivialShortDecodes)
+{
+    for (const auto &p : short_cases)
+    {
+        EXPECT_EQ(base85::decode(cstr2v(p.first)), cstr2v(p.second));
+    }
 }
