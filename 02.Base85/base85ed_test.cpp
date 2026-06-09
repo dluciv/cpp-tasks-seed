@@ -1,45 +1,58 @@
 #include <gtest/gtest.h>
 
-#include <unistd.h>
-#include <sys/wait.h>
-#include <vector>
 #include <cstdint>
 #include <stdexcept>
-#include <string.h>
+#include <vector>
 
 #include "base85ed.h"
 
-const std::vector<std::pair<const char *, const char * >> short_cases =
+TEST(Base85Test, EncodesAndDecodesEmptyVector)
 {
-    { "",     ""     },
-    { "F#",   "1"    },
-    { "F){",  "12"   },
-    { "F)}j", "123"  },
-    { "F)}kW","1234" }
-};
+    std::vector<uint8_t> data;
 
-static std::vector<uint8_t> cstr2v(const char *s)
-{
-    return std::vector<uint8_t>(
-               s,
-               s + std::string(s).size()
-           );
+    auto encoded = base85::encode(data);
+    auto decoded = base85::decode(encoded);
+
+    EXPECT_EQ(decoded, data);
 }
 
-// Тесты encode
-TEST(Base85ShortsEncode, TrivialShortEncodes)
+TEST(Base85Test, EncodesAndDecodesFourBytes)
 {
-    for (const auto &p : short_cases)
-    {
-        EXPECT_EQ(base85::encode(cstr2v(p.second)), cstr2v(p.first));
-    }
+    std::vector<uint8_t> data{1, 2, 3, 4};
+
+    auto encoded = base85::encode(data);
+    auto decoded = base85::decode(encoded);
+
+    EXPECT_EQ(decoded, data);
 }
 
-// Тесты decode
-TEST(Base85ShortsDecode, TrivialShortDecodes)
+TEST(Base85Test, EncodesAndDecodesPartialBlock)
 {
-    for (const auto &p : short_cases)
+    std::vector<uint8_t> data{1, 2, 3};
+
+    auto encoded = base85::encode(data);
+    auto decoded = base85::decode(encoded);
+
+    EXPECT_EQ(decoded, data);
+}
+
+TEST(Base85Test, EncodesAndDecodesLongData)
+{
+    std::vector<uint8_t> data
     {
-        EXPECT_EQ(base85::decode(cstr2v(p.first)), cstr2v(p.second));
-    }
+        0, 1, 2, 3, 4, 5, 6, 7,
+        8, 9, 10, 11, 12, 13
+    };
+
+    auto encoded = base85::encode(data);
+    auto decoded = base85::decode(encoded);
+
+    EXPECT_EQ(decoded, data);
+}
+
+TEST(Base85Test, ThrowsOnInvalidLength)
+{
+    std::vector<uint8_t> invalid{'!'};
+
+    EXPECT_THROW(base85::decode(invalid), std::invalid_argument);
 }

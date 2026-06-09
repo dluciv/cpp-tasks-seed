@@ -1,5 +1,8 @@
-#include <string>
 #include <iomanip>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 #include <lazycsv.hpp>
 
 #include "util.h"
@@ -12,15 +15,47 @@ GaussMatrix load_csv_to_matrix(const char *filename)
         for (const auto row : parser)
         {
             std::vector<double> r{};
+            bool row_is_numeric = true;
             for (const auto cell : row)
             {
-                r.push_back(std::stod(std::string(cell.raw())));
+                try
+                {
+                    r.push_back(std::stod(std::string(cell.raw())));
+                }
+                catch (const std::invalid_argument&)
+                {
+                    row_is_numeric = false;
+                    break;
+                }
             }
-            rcsv.push_back(r);
+            if (row_is_numeric && !r.empty())
+            {
+                rcsv.push_back(r);
+            }
         }
     }
 
-    return GaussMatrix(rcsv.size(), rcsv.begin()->size());
+    if (rcsv.empty())
+    {
+        throw std::invalid_argument("CSV file does not contain matrix rows");
+    }
+
+    const auto cols = rcsv.front().size();
+    GaussMatrix matrix(rcsv.size(), cols);
+
+    for (int i = 0; i < matrix.rows(); ++i)
+    {
+        if (rcsv[i].size() != cols)
+        {
+            throw std::invalid_argument("CSV rows must have the same length");
+        }
+        for (int j = 0; j < matrix.cols(); ++j)
+        {
+            matrix(i, j) = rcsv[i][j];
+        }
+    }
+
+    return matrix;
 }
 
 void print_matrix_as_csv(std::ostream& out, const GaussMatrix &matrix, int prec)
