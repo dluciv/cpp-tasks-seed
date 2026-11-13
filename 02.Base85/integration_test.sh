@@ -1,29 +1,31 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-status=true
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
 
-dd bs=512 count=1 if=/dev/random of=random.bin 2>/dev/null
-python -c 'import sys; import base64; sys.stdout.buffer.write(base64.b85encode(sys.stdin.buffer.read()))' <random.bin >random.b85
+for length in 0 1 2 3 4 5 7 16 257 1027 65537; do
+    python3 - "$length" "$tmpdir/input.bin" "$tmpdir/reference.b85" <<'PY'
+import base64
+import random
+import sys
 
-# ---------------------------------------------------
+length = int(sys.argv[1])
+generator = random.Random(42 + length)
+data = generator.randbytes(length)
 
-./base85 -e <random.bin >random.b85.test
-./base85 -d <random.b85 >random.bin.test
+with open(sys.argv[2], 'wb') as stream:
+    stream.write(data)
 
-if cmp -s random.b85 random.b85.test; then
-  echo Encoder ok!
-else
-  echo Encoder failed! >&2
-  status=false
-fi
+with open(sys.argv[3], 'wb') as stream:
+    stream.write(base64.b85encode(data))
+PY
 
-if cmp -s random.bin random.bin.test; then
-  echo Decoder ok!
-else
-  echo Decoder failed! >&2
-  status=false
-fi
+    ./base85 -e < "$tmpdir/input.bin" > "$tmpdir/encoded.b85"
+    cmp "$tmpdir/reference.b85" "$tmpdir/encoded.b85"
 
-# ---------------------------------------------------
+    ./base85 -d < "$tmpdir/reference.b85" > "$tmpdir/decoded.bin"
+    cmp "$tmpdir/input.bin" "$tmpdir/decoded.bin"
+done
 
-$status
+printf 'Base85 integration tests passed.\n'
