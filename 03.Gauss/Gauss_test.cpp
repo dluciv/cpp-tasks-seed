@@ -61,7 +61,10 @@ TEST(GaussSolve, IncorrectDimensions)
 
 TEST(GaussSolve, ReproducibleRandomSystems)
 {
-    for (int size : {8, 32, 128})
+    for (int size :
+            {
+                8, 32, 128
+            })
     {
         std::mt19937 generator(static_cast<unsigned int>(42 + size));
         std::uniform_int_distribution<int> distribution(-5, 5);

@@ -21,9 +21,9 @@ GaussVector Gauss_solve(GaussMatrix &ab)
     {
         Eigen::Index offset = 0;
         const double largest = ab.col(column)
-                                   .segment(column, n - column)
-                                   .cwiseAbs()
-                                   .maxCoeff(&offset);
+                               .segment(column, n - column)
+                               .cwiseAbs()
+                               .maxCoeff(&offset);
 
         if (!std::isfinite(largest) || largest == 0.0)
         {
