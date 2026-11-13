@@ -19,7 +19,8 @@ std::vector<std::uint8_t> as_bytes(const std::string& text)
 
 TEST(Base85, KnownEncodingAndDecoding)
 {
-    const std::vector<std::pair<std::string, std::string>> cases = {
+    const std::vector<std::pair<std::string, std::string>> cases =
+    {
         {"", ""},
         {"1", "F#"},
         {"12", "F){"},
@@ -47,7 +48,8 @@ TEST(Base85, KnownEncodingAndDecoding)
 
 TEST(Base85, BinaryData)
 {
-    const std::vector<std::uint8_t> input = {
+    const std::vector<std::uint8_t> input =
+    {
         0, 0, 0, 0, 255, 255, 255, 255
     };
 
@@ -77,11 +79,12 @@ TEST(Base85, RandomDataOfDifferentLengths)
     std::mt19937 engine(42);
     std::uniform_int_distribution<int> distribution(0, 255);
 
-    for (std::size_t length : {
-        0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u,
-        8u, 9u, 16u, 31u, 32u, 33u,
-        100u, 257u, 1024u, 8193u, 65537u
-    })
+    for (std::size_t length :
+            {
+                0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u,
+                8u, 9u, 16u, 31u, 32u, 33u,
+                100u, 257u, 1024u, 8193u, 65537u
+            })
     {
         SCOPED_TRACE(length);
 
@@ -90,8 +93,8 @@ TEST(Base85, RandomDataOfDifferentLengths)
         for (auto& byte : input)
         {
             byte = static_cast<std::uint8_t>(
-                distribution(engine)
-            );
+                       distribution(engine)
+                   );
         }
 
         EXPECT_EQ(

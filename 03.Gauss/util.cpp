@@ -56,7 +56,7 @@ GaussMatrix load_csv_to_matrix(const char *filename)
             }
 
             if (cell.find_first_not_of(" \t\r", used) != std::string::npos ||
-                !std::isfinite(number))
+                    !std::isfinite(number))
             {
                 throw std::invalid_argument("Invalid number in CSV file");
             }
@@ -95,7 +95,7 @@ GaussMatrix load_csv_to_matrix(const char *filename)
         for (Eigen::Index column = 0; column < matrix.cols(); ++column)
         {
             matrix(row, column) = rows[static_cast<std::size_t>(row)]
-                                      [static_cast<std::size_t>(column)];
+                                  [static_cast<std::size_t>(column)];
         }
     }
 

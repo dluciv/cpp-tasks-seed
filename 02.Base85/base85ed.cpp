@@ -101,8 +101,8 @@ std::vector<std::uint8_t> base85::decode(
         for (std::size_t i = 0; i < 5; ++i)
         {
             const std::uint8_t symbol = i < count
-                ? b85str[pos + i]
-                : static_cast<std::uint8_t>('~');
+                                        ? b85str[pos + i]
+                                        : static_cast<std::uint8_t>('~');
 
             const int digit = table[symbol];
 

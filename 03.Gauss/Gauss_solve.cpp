@@ -31,9 +31,9 @@ GaussVector Gauss_solve(GaussMatrix &ab)
     {
         Eigen::Index offset = 0;
         const double largest = ab.col(column)
-                                   .segment(column, n - column)
-                                   .cwiseAbs()
-                                   .maxCoeff(&offset);
+                               .segment(column, n - column)
+                               .cwiseAbs()
+                               .maxCoeff(&offset);
 
         if (largest <= tolerance)
         {
@@ -64,7 +64,7 @@ GaussVector Gauss_solve(GaussMatrix &ab)
         if (count > 0)
         {
             rhs -= ab.row(row).segment(row + 1, count)
-                       .dot(solution.segment(row + 1, count));
+                   .dot(solution.segment(row + 1, count));
         }
 
         solution(row) = rhs / ab(row, row);

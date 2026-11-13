@@ -9,7 +9,8 @@
 template <typename Sort>
 void check_sort(Sort sorter)
 {
-    std::vector<std::vector<int>> test_cases = {
+    std::vector<std::vector<int>> test_cases =
+    {
         {},
         {1},
         {2, 1},
@@ -27,7 +28,10 @@ void check_sort(Sort sorter)
     std::mt19937 generator(42);
     std::uniform_int_distribution<int> distribution(-1000, 1000);
 
-    for (unsigned int size : {10u, 50u, 100u, 500u, 1000u})
+    for (unsigned int size :
+            {
+                10u, 50u, 100u, 500u, 1000u
+            })
     {
         std::vector<int> values(size);
 

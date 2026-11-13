@@ -43,30 +43,33 @@ int main()
     std::mt19937 generator(42);
     std::cout << "N\tAlgorithm\tComparisons\tSwaps\tMoves\n";
 
-    for (std::size_t size : {100u, 500u, 1000u, 2000u})
+    for (std::size_t size :
+            {
+                100u, 500u, 1000u, 2000u
+            })
     {
         auto values = generate_data(size);
         std::shuffle(values.begin(), values.end(), generator);
 
         if (!run_sort(size, "std::sort", values, [](auto first, auto last)
-        {
-            std::sort(first, last);
+    {
+        std::sort(first, last);
         }))
         {
             return 1;
         }
 
         if (!run_sort(size, "Bubble", values, [](auto first, auto last)
-        {
-            bubble_sort(first, last);
+    {
+        bubble_sort(first, last);
         }))
         {
             return 1;
         }
 
         if (!run_sort(size, "Quick", values, [](auto first, auto last)
-        {
-            quick_sort(first, last);
+    {
+        quick_sort(first, last);
         }))
         {
             return 1;

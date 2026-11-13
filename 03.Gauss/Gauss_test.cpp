@@ -21,7 +21,7 @@ TEST(GaussSolve, TwoEquations)
 {
     GaussMatrix matrix(2, 3);
     matrix << 2.0, 1.0, 5.0,
-              1.0, -1.0, 1.0;
+           1.0, -1.0, 1.0;
 
     const GaussVector solution = Gauss_solve(matrix);
 
@@ -33,7 +33,7 @@ TEST(GaussSolve, PartialPivoting)
 {
     GaussMatrix matrix(2, 3);
     matrix << 0.0, 2.0, 4.0,
-              1.0, 1.0, 3.0;
+           1.0, 1.0, 3.0;
 
     const GaussVector solution = Gauss_solve(matrix);
 
@@ -45,7 +45,7 @@ TEST(GaussSolve, SingularMatrix)
 {
     GaussMatrix matrix(2, 3);
     matrix << 1.0, 2.0, 3.0,
-              2.0, 4.0, 6.0;
+           2.0, 4.0, 6.0;
 
     EXPECT_THROW(Gauss_solve(matrix), std::runtime_error);
 }
@@ -60,7 +60,10 @@ TEST(GaussSolve, IncorrectDimensions)
 
 TEST(GaussSolve, ReproducibleRandomSystems)
 {
-    for (int size : {8, 32, 128})
+    for (int size :
+            {
+                8, 32, 128
+            })
     {
         std::mt19937 generator(static_cast<unsigned int>(42 + size));
         std::uniform_int_distribution<int> distribution(-5, 5);
