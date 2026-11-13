@@ -1,7 +1,6 @@
 #include "Gauss_solve.h"
 
 #include <cmath>
-#include <limits>
 #include <stdexcept>
 
 GaussVector Gauss_solve(GaussMatrix &ab)
@@ -18,29 +17,21 @@ GaussVector Gauss_solve(GaussMatrix &ab)
         throw std::invalid_argument("Matrix contains a non-finite value");
     }
 
-    const double scale = ab.leftCols(n).cwiseAbs().maxCoeff();
-    if (scale == 0.0)
-    {
-        throw std::runtime_error("Singular matrix");
-    }
-
-    const double tolerance =
-        std::numeric_limits<double>::epsilon() * static_cast<double>(n) * scale;
-
     for (Eigen::Index column = 0; column < n; ++column)
     {
         Eigen::Index offset = 0;
         const double largest = ab.col(column)
-                               .segment(column, n - column)
-                               .cwiseAbs()
-                               .maxCoeff(&offset);
+                                   .segment(column, n - column)
+                                   .cwiseAbs()
+                                   .maxCoeff(&offset);
 
-        if (largest <= tolerance)
+        if (!std::isfinite(largest) || largest == 0.0)
         {
-            throw std::runtime_error("Singular or ill-conditioned matrix");
+            throw std::runtime_error("Singular or numerically invalid matrix");
         }
 
         const Eigen::Index pivot = column + offset;
+
         if (pivot != column)
         {
             ab.row(column).swap(ab.row(pivot));
@@ -49,13 +40,16 @@ GaussVector Gauss_solve(GaussMatrix &ab)
         for (Eigen::Index row = column + 1; row < n; ++row)
         {
             const double factor = ab(row, column) / ab(column, column);
+
             ab.row(row).segment(column + 1, n - column) -=
                 factor * ab.row(column).segment(column + 1, n - column);
+
             ab(row, column) = 0.0;
         }
     }
 
     GaussVector solution(n);
+
     for (Eigen::Index row = n; row-- > 0;)
     {
         double rhs = ab(row, n);
@@ -68,6 +62,11 @@ GaussVector Gauss_solve(GaussMatrix &ab)
         }
 
         solution(row) = rhs / ab(row, row);
+    }
+
+    if (!solution.array().isFinite().all())
+    {
+        throw std::runtime_error("Non-finite solution");
     }
 
     return solution;
