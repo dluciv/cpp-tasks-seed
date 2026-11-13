@@ -2,27 +2,30 @@
 #define SORTING_H
 
 #include <algorithm>
-#include <iterator>
+#include <cstddef>
+#include <utility>
+
+#include "collvalue.h"
 
 template <typename Iterator>
 void bubble_sort(Iterator begin, Iterator end)
 {
     for (Iterator last = end; last - begin > 1; --last)
     {
-        bool swapped = false;
+        bool changed = false;
 
         for (Iterator it = begin; it + 1 < last; ++it)
         {
             if (*(it + 1) < *it)
             {
                 std::iter_swap(it, it + 1);
-                swapped = true;
+                changed = true;
             }
         }
 
-        if (!swapped)
+        if (!changed)
         {
-            break;
+            return;
         }
     }
 }
@@ -30,38 +33,54 @@ void bubble_sort(Iterator begin, Iterator end)
 namespace sorting_detail
 {
 template <typename Iterator>
-void heap_sort(Iterator begin, Iterator end)
+void quick_sort_impl(Iterator begin, Iterator end, int depth)
 {
-    using Difference = typename std::iterator_traits<Iterator>::difference_type;
-    const Difference count = end - begin;
-
-    auto sift_down = [&](Difference root, Difference length)
+    while (end - begin > 1)
     {
-        while (root < length / 2)
+        if (depth == 0)
         {
-            Difference child = 2 * root + 1;
-            if (child + 1 < length && *(begin + child) < *(begin + child + 1))
-            {
-                ++child;
-            }
-            if (!(*(begin + root) < *(begin + child)))
-            {
-                break;
-            }
-            std::iter_swap(begin + root, begin + child);
-            root = child;
+            std::make_heap(begin, end);
+            std::sort_heap(begin, end);
+            return;
         }
-    };
 
-    for (Difference start = count / 2; start > 0; --start)
-    {
-        sift_down(start - 1, count);
-    }
+        --depth;
 
-    for (Difference length = count; length > 1; --length)
-    {
-        std::iter_swap(begin, begin + length - 1);
-        sift_down(0, length - 1);
+        const auto pivot = *(begin + (end - begin) / 2);
+
+        Iterator left = begin;
+        Iterator current = begin;
+        Iterator right = end;
+
+        while (current < right)
+        {
+            if (*current < pivot)
+            {
+                std::iter_swap(left, current);
+                ++left;
+                ++current;
+            }
+            else if (pivot < *current)
+            {
+                --right;
+                std::iter_swap(current, right);
+            }
+            else
+            {
+                ++current;
+            }
+        }
+
+        if (left - begin < end - right)
+        {
+            quick_sort_impl(begin, left, depth);
+            begin = right;
+        }
+        else
+        {
+            quick_sort_impl(right, end, depth);
+            end = left;
+        }
     }
 }
 }
@@ -69,27 +88,16 @@ void heap_sort(Iterator begin, Iterator end)
 template <typename Iterator>
 void quick_sort(Iterator begin, Iterator end)
 {
-    using Difference = typename std::iterator_traits<Iterator>::difference_type;
-    const Difference count = end - begin;
-    if (count < 2)
+    auto count = end - begin;
+    int depth = 0;
+
+    while (count > 1)
     {
-        return;
+        depth += 2;
+        count /= 2;
     }
 
-    int depth_limit = 0;
-    for (Difference length = count; length > 1; length /= 2)
-    {
-        ++depth_limit;
-    }
-    depth_limit *= 2;
+    sorting_detail::quick_sort_impl(begin, end, depth);
+}
 
-    auto sort_part = [&](auto&& self, Iterator first, Iterator last, int depth) -> void
-    {
-        while (last - first > 1)
-        {
-            if (depth == 0)
-            {
-                sorting_detail::heap_sort(first, last);
-                return;
-            }
-            --depth;
+#endif // SORTING_H
